@@ -1,0 +1,54 @@
+:
+#
+# 
+# REM s-record machine code loader
+# REM read s-record format, poke into memory
+#
+# passing through perl so we can limit the rate - rts/cts isn't working
+#
+# REM
+# REM 2008-12-10  Ed Spittles  original (3 lines, unmaintainable)
+# REM
+# REM bugs:
+# REM   starts poking before validating the checksum
+# REM   only S1 records allowed
+# REM   no means to execute as yet
+# REM   fails to save and correctly use the address of the first srecord
+# REM   would treat the first srecord specially if it did
+# REM   but in any case only presently reads a single record per invocation
+# REM   using global variables in functions and procedures
+# REM   functions and procedures with side effects
+# REM   using fewest characters for easiest upload makes for unmaintainability
+# REM 
+# REM
+# REM sample data (Rich's one-byte memory test for 65816):
+# REM   S12319027818FBA9AAA2CC8F5019FF8E50198AAF5019FFAE501938FB5860EA61207665722C
+# REM   S11F192279207665727920766572792076657279206C6F6E6720737472696E67F3
+# REM
+# REM the above derived from a ca65 assembler listing using
+# REM   awk '/^......  1 /{print substr($0,12,11)}' | xxd -r -p | srec_cat - -Binary -offset 6402 -crlf  -data-only
+# REM
+# REM note that DATA and DEF FN have to be within numbered lines: cannot be immediate
+# REM crib:
+# REM   VAL("&1F")
+# REM
+# REM FNH is a function with a side effect: read one hex byte from A$
+# REM PROCR is a procedure with side effects: reads an S1 record into A$
+
+(
+  cat <<'__EOF__'
+PAGE=PAGE OR &100 : REM IRQ handler at 0E6C
+NEW
+MODE 7
+10DEFFNH:T%=EVAL("&"+LEFT$(A$,2)):A$=MID$(A$,3):C%=C%+T%:=T%
+20DEFPROCR:REP.INPUTA$:U.LEFT$(A$,2)="S1":A$=MID$(A$,3):C%=1:ENDPROC
+30REP.PROCR:L%=FNH:P%=FNH*256+FNH:FORI%=1TOL%-3:?P%=FNH:P%=P%+1:N.:T%=FNH:IFC%AND255THENP."BADCRC"ELSEU.FA.
+RUN
+__EOF__
+  cat $*
+  echo S1
+) |
+  perl -e '$|=1;while (<>) {select undef, undef, undef, 0.3;print $_."\r"}sleep(1)' |
+  telnet localhost 3000
+ 
+
