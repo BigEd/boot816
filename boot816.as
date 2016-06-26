@@ -8,12 +8,8 @@
         ;; 65816 configurations.
         ;;
         ;; ---------------------------------------------------------
-        ;; (C) 2008-2010 Ed Spittles, Richard Evans
+        ;; (C) 2008-2016 Ed Spittles, Richard Evans
         ;; ---------------------------------------------------------
-        ;;
-        ;; $Author:$
-        ;; $Id:$
-        ;; $Rev: 381 $
         ;;
         .SETCPU "65816"
         .ORG $8000
@@ -70,7 +66,7 @@ OFST:   .BYTE COPYRT-LANG
 VERNO:  .BYTE $02
 TITLE:  .BYTE "BOOT816 - 65816 support",$0D
         .BYTE $00
-TITLE2: .BYTE "2008-10"
+TITLE2: .BYTE "2008-16"
 COPYRT: .BYTE $00
         .BYTE "(C) Rich Evans & Ed Spittles",$0D
         .BYTE $00
@@ -673,15 +669,13 @@ REPORTCPU:
         JSR DetectCPUType
         PHA
         JSR PRNTSTR             	; Print inline text up to NOP
-        .BYTE 13
-        .BYTE " Detected "
+        .BYTE "- Detected "
         NOP
         PLA
         CMP #$00
         BNE DetectionNot6502
         JSR PRNTSTR             	; Print inline text up to NOP
         .BYTE "original NMOS 6502",$0D
-        .BYTE 13
         NOP
         RTS
 DetectionNot6502:
@@ -689,7 +683,6 @@ DetectionNot6502:
         BNE DetectionNotCMOS6502
         JSR PRNTSTR                     ; Print inline text up to NOP
         .BYTE "Standard 65C02",$0D
-        .BYTE 13
         NOP
         RTS
 DetectionNotCMOS6502:
@@ -703,7 +696,6 @@ DetectionNotCMOS6502:
 DetectionNotRockwell:
 	JSR PRNTSTR              	; Print inline text up to NOP
 	.BYTE "65802 or 65816",$0D
-	.BYTE 13
 	NOP
 	RTS	
         ; detect the CPU type
@@ -797,6 +789,10 @@ DetectKey:
         CPX #$FF
         BNE BootFSSkip1
         ;; redirect the serial if no key was pressed
+        JSR PRNTSTR
+        .BYTE "- Setting serial IO, 19200 baud", $0D,"(hold any key during boot to disable)", $0D
+        .BYTE 13
+        NOP
         JSR SetSerialRedirect2
 BootFSSkip1:
         RTS
