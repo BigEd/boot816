@@ -16,6 +16,9 @@
 
         .DEFINE ROMLATCH	$FE30
         .DEFINE ROMLATCHCOPY	  $F4
+	.DEFINE		CPLD_MAPREG    $800003      ; CPLD MAP and clock control register location
+	.DEFINE		CPLD_RAM_MAPMASK   $10      ; NB bits 0..3 are clock control bits and not to be disturbed
+	.DEFINE		CPLD_ROM_MAPMASK   $20      ; NB bits 0..3 are clock control bits and not to be disturbed        
 
 	.DEFINE OSRDRM  $FFB9 rom number in Y, address in &F6/7, X and Y not preserved
         .DEFINE GSINIT  $FFC2
@@ -154,8 +157,7 @@ BTEXT:  .BYTE $0D
         .BYTE "  HEXDUMP",$0D
         .BYTE "  OVERLAYON",$0D
         .BYTE "  OVERLAYOFF",$0D
-        .BYTE "  MEMCOPY",$0D
-        .BYTE "  OSCOPY",$0D
+        .BYTE "  ROMCOPY",$0D
         .BYTE $00
 LTEXT:  .BYTE $0D
         .BYTE "BOOT816 $Rev: 381 $",$0D
@@ -257,12 +259,9 @@ COMLIST:
         .BYTE "OVERLAYOFF"
         .BYTE >OVERLAYOFF
         .BYTE <OVERLAYOFF
-        .BYTE "MEMCOPY"
-        .BYTE >MEMCOPY
-        .BYTE <MEMCOPY
-        .BYTE "OSCOPY"
-        .BYTE >OSCOPY
-        .BYTE <OSCOPY
+        .BYTE "ROMCOPY"
+        .BYTE >ROMCOPY
+        .BYTE <ROMCOPY
         .BYTE $FF
         ;; ------------------------------------------------------------------------
         ;; (*)TEST816
@@ -779,8 +778,7 @@ BootFS:
 ;        JSR DetectHiMem
 ;        CPY #$00
 ;        BNE DetectKey
-;        JSR OSCOPY
-;        JSR MEMCOPY
+;        JSR ROMCOPY
 ;        JSR OVERLAYON
 DetectKey:
         ;; detect any key pressed
@@ -860,8 +858,6 @@ BIST:   PHA
 	.DEFINE		LOMEM_MAPSTART $0000
 	.DEFINE		HIMEM_MAPSTART $FE0000
 	.DEFINE		HIMEM_MAPLEN   $8000    ; overlay covers 32K now
-	.DEFINE		CPLD_MAPREG    $800003
-	.DEFINE		CPLD_MAPMASK   $10      ; NB bits 0..3 are clock control bits and not to be disturbed
 
 OVERLAYON:
 
@@ -891,7 +887,7 @@ OVERLAYON:
 
         ; switch in the memory mapping using 24-bit addressing
 	LDA CPLD_MAPREG
-	ORA #CPLD_MAPMASK
+	ORA #CPLD_RAM_MAPMASK
 	STA CPLD_MAPREG
 
         PLB                     ; restore DBR (from the stack in the mapped state)
@@ -918,7 +914,7 @@ OVERLAYOFF:
 
         ; switch out the memory mapping by clearing the control bit
 	LDA CPLD_MAPREG
-	AND #($ff-CPLD_MAPMASK)
+	AND #($ff-CPLD_RAM_MAPMASK)
 	STA CPLD_MAPREG
 
 	;; block copy routine - ought really to re-use this code
@@ -959,8 +955,6 @@ OVERLAYOFF:
 	.DEFINE		ZP_PTR_1	        $70
 
 MEMCOPY:
-	JSR DieIfNot65816
-
 	;; allocate space on the stack
 	TSX
 	TXA
@@ -1000,6 +994,33 @@ MEMCOPY_DONE:
 	TXS
 	RTS
 
+
+        ;; ---------------------------------------------------------
+        ;; ROMCOPY - call both the old OSCOPY and MEMCOPY functions
+        ;;           to make HIMEM copies of the firmware
+        ;; *ROMCOPY
+        ;; ---------------------------------------------------------
+        
+ROMCOPY:
+       JSR DieIfNot65816
+       JSR PRNTSTR
+       .BYTE "Copying MOS to high memory ..."
+       NOP
+       JSR OSCOPY
+       JSR PRNTSTR
+       .BYTE "DONE.", $0D,"Copying ROM 0x0F to high memory ..."
+       NOP
+       JSR MEMCOPY
+       JSR PRNTSTR
+       .BYTE "DONE.", $0D
+       NOP
+       ;; Set the ROM copied mapping bit at the end
+       LDA CPLD_MAPREG
+       ORA #CPLD_RAM_MAPMASK
+       STA CPLD_MAPREG
+       RTS
+       
+
         ;; ---------------------------------------------------------
         ;; OS-ROM-copy: copy 15k and 256bytes from bank0 to himem
         ;; *OSCOPY
@@ -1010,8 +1031,6 @@ MEMCOPY_DONE:
         .DEFINE         COPY_LEN             $3C00  ; 31k
 
 OSCOPY:
-	JSR DieIfNot65816
-
 	;; allocate space on the stack
 	TSX
 	TXA
