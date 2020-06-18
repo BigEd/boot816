@@ -1015,9 +1015,9 @@ ROMCOPY:
        .BYTE "DONE.", $0D
        NOP
        ;; Set the ROM copied mapping bit at the end
-       LDA CPLD_MAPREG
-       ORA #CPLD_RAM_MAPMASK
-       STA CPLD_MAPREG
+       ;; LDA CPLD_MAPREG
+       ;; ORA #CPLD_ROM_MAPMASK
+       ;; STA CPLD_MAPREG
        RTS
        
 
