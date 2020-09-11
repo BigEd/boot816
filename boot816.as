@@ -920,64 +920,7 @@ OVERLAYOFF:
 	RTS
 
         ;; ---------------------------------------------------------
-        ;; a fixed copy of 16k of SWROM 15 from bank 0 to FE
-        ;; *MEMCOPY
-	;; note that variable banks means patching the code
-	;; note that the code must be in RAM anyway to read ROM
-	;;   possible but slower to use OSRDRM to read a byte at a time
-	;;
-	;; we might one day want a generic MEMCOPY with parameters
-	;; perhaps this should be called ROMCOPY
-        ;; ---------------------------------------------------------
-        .DEFINE         MEMCOPY_SRC	      $8000
-	.DEFINE		MEMCOPY_SOURCE_ROM      $0F  ; default to copying with ROM 15 in the map
-        .DEFINE         MEMCOPY_DST         $FE8000  ; for testing: $018000 
-        .DEFINE         MEMCOPY_LEN           $4000  ; just copy one ROM's worth
-	.DEFINE		ZP_PTR_1	        $70
-
-MEMCOPY:
-	;; allocate space on the stack
-	TSX
-	TXA
-	TAY ; original stack ptr
-	SEC
-	SBC #(MEMCOPYCODE_END - MEMCOPYCODE + 1)
-	TAX
-	TXS
-	PHY ; save original stack ptr so we can de-allocate
-
-	; init our pointer to the stack area
-	INC A
-	STA ZP_PTR_1
-	LDA #1			; stack is certainly page 1 - we're in emulation mode
-	STA ZP_PTR_1+1
-
-	LDY #(MEMCOPYCODE_END - MEMCOPYCODE)
-MEMCOPY_BACK_1:
-	LDA MEMCOPYCODE,Y
-	STA (ZP_PTR_1),Y
-	DEY
-	BPL MEMCOPY_BACK_1	; we copy fewer than 127 bytes
-
-	; fake an indirect subroutine call
-	LDA #>(MEMCOPY_DONE-1)
-	PHA
-	LDA #<(MEMCOPY_DONE-1)
-	PHA
-	JMP (ZP_PTR_1)
-MEMCOPY_DONE:
-
-	;; to debug this, bear in mind that about 9 bytes of what we place
- 	;; will have been overwritten by the time we return to CLI
-
-	;; free space on the stack
-	PLX
-	TXS
-	RTS
-
-
-        ;; ---------------------------------------------------------
-        ;; ROMCOPY - call both the old OSCOPY and MEMCOPY functions
+        ;; ROMCOPY - call both the OSCOPY and COPY8ROMS functions
         ;;           to make HIMEM copies of the firmware
         ;; *ROMCOPY
         ;; ---------------------------------------------------------
@@ -989,9 +932,9 @@ ROMCOPY:
        NOP
        JSR OSCOPY
        JSR PRNTSTR
-       .BYTE "DONE.", $0D,"Copying ROM 0x0F to high memory ..."
+       .BYTE "DONE.", $0D,"Copying 8 ROMs to high memory ..."
        NOP
-       JSR MEMCOPY
+       JSR COPY8ROMS
        JSR PRNTSTR
        .BYTE "DONE.", $0D
        NOP
@@ -1007,10 +950,10 @@ ROMCOPY:
         ;; *OSCOPY
         ;; ---------------------------------------------------------
         .DEFINE         OSCOPY1_SRC	      $C000
-        .DEFINE         OSCOPY1_DST         $FEC000  ; implicit - not used
+        .DEFINE         OSCOPY1_DST         $EEC000
         .DEFINE         COPY1_LEN             $3C00  ; 15k
         .DEFINE         OSCOPY2_SRC	      $FF00
-        .DEFINE         OSCOPY2_DST         $FEFF00  ; implicit - not used
+        .DEFINE         OSCOPY2_DST         $EEFF00
         .DEFINE         COPY2_LEN              $100  ; 256 bytes
 
 OSCOPY:
@@ -1036,18 +979,108 @@ OSCOPY:
         MAC_MODE02 ; also re-enables interrupts
 	RTS
 
+
+        ;; ---------------------------------------------------------
+        ;; a fixed copy of 16k of SWROM 15 from bank 0 to FE
+        ;; *MEMCOPY  (unimplemented)
+	;; note that variable banks means patching the code
+	;; note that the code must be in RAM anyway to read ROM
+	;;   possible but slower to use OSRDRM to read a byte at a time
+	;;
+	;; we might one day want a generic MEMCOPY with parameters
+	;; perhaps this should be called ROMCOPY
+        ;; ---------------------------------------------------------
+
+COPY8ROMS:
+         ;; we need about 50 bytes, somewhere in RAM, to do the copying
+         ; first we copy our master routine, then patch it and then use it
+         ; it would be clever to allocate on the stack
+         ; but a bit too clever
+         ; so let's just use some spare RAM from somewhere
+         ; we could allocate ROM workspace officially
+         ; or just pick somewhere which looks unimportant
+         .DEFINE SCRATCHRAM $7F80  ; in screen memory, for now!
+
+         JSR INSTALLMEMCOPY
+
+         ; copy the 4 RAMish ROMs, 4 to 7, to bank EC
+         LDA #$EC
+         STA MEMCOPY_PATCH_MVN - MEMCOPYCODE+SCRATCHRAM +1
+         LDY #4
+NEXTROM1:
+         TYA
+         STA MEMCOPY_PATCH_ROM - MEMCOPYCODE+SCRATCHRAM +1
+         ROR        ;; move ROM index into top bits for destination
+         ROR
+         ROR
+         AND #$C0
+         STA MEMCOPY_PATCH_DEST - MEMCOPYCODE+SCRATCHRAM +2
+         PHY
+         JSR SCRATCHRAM
+         PLY
+         INY
+         CPY #8
+         BNE NEXTROM1
+
+         ; copy the top 4 ROMs, 12 to 15, to bank ED
+         LDA #$ED
+         STA MEMCOPY_PATCH_MVN - MEMCOPYCODE+SCRATCHRAM +1
+         LDY #12
+NEXTROM2:
+         TYA
+         STA MEMCOPY_PATCH_ROM - MEMCOPYCODE+SCRATCHRAM +1
+         ROR        ;; move ROM index into top bits for destination
+         ROR
+         ROR
+         AND #$C0
+         STA MEMCOPY_PATCH_DEST - MEMCOPYCODE+SCRATCHRAM +2
+         PHY
+         JSR SCRATCHRAM
+         PLY
+         INY
+         CPY #16
+         BNE NEXTROM2
+
+         RTS
+
+
+        ;; we've allocated ourselves two bytes in page zero
+        ;; rather boldly and unofficially
+	.DEFINE		ZP_PTR_1	         $70
+
+INSTALLMEMCOPY:
+	; init our pointer to the destination area
+	LDA #<SCRATCHRAM
+	STA ZP_PTR_1
+	LDA #>SCRATCHRAM
+	STA ZP_PTR_1+1
+
+	LDY #(MEMCOPYCODE_END - MEMCOPYCODE)
+MEMCOPY_BACK_1:
+	LDA MEMCOPYCODE,Y
+	STA (ZP_PTR_1),Y
+	DEY
+	BPL MEMCOPY_BACK_1	; we copy fewer than 127 bytes
+
+	RTS
+
         ;; ---------------------------------------------------------
         ;; Code to be copied into RAM so it can copy SWROM
 	;; Has extra labels so it can be patched in various places
-	;; 43 bytes ($2B bytes) approx - can fit onto stack
+	;; 43 bytes ($2B bytes) approx - can fit in stack
         ;; ---------------------------------------------------------
+        .DEFINE         MEMCOPY_SRC	       $8000
+	.DEFINE		MEMCOPY_SOURCE_ROM_DUMMY $0F  ; default to copying with ROM 15 in the map
+        .DEFINE         MEMCOPY_DST          $EDC000  ; for testing: $018000 
+        .DEFINE         MEMCOPY_LEN            $4000  ; just copy one ROM's worth
+
 MEMCOPYCODE:
 
 	LDA ROMLATCHCOPY ; take a safe copy of the current ROM
 	PHA
 
 MEMCOPY_PATCH_ROM:
-	LDA #MEMCOPY_SOURCE_ROM
+	LDA #MEMCOPY_SOURCE_ROM_DUMMY
 
 	STA ROMLATCHCOPY
 	STA ROMLATCH
