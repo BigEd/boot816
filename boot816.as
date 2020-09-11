@@ -154,8 +154,6 @@ BTEXT:  .BYTE $0D
         .BYTE "  HIPEEK",$0D
         .BYTE "  HIPOKE",$0D
         .BYTE "  HEXDUMP",$0D
-        .BYTE "  OVERLAYON",$0D
-        .BYTE "  OVERLAYOFF",$0D
         .BYTE "  ROMCOPY",$0D
         .BYTE $00
 LTEXT:  .BYTE $0D
@@ -249,12 +247,6 @@ COMLIST:
         .BYTE "HIPOKE"
         .BYTE >HIPOKE
         .BYTE <HIPOKE
-        .BYTE "OVERLAYON"
-        .BYTE >OVERLAYON
-        .BYTE <OVERLAYON
-        .BYTE "OVERLAYOFF"
-        .BYTE >OVERLAYOFF
-        .BYTE <OVERLAYOFF
         .BYTE "ROMCOPY"
         .BYTE >ROMCOPY
         .BYTE <ROMCOPY
@@ -775,7 +767,7 @@ BootFS:
 ;        CPY #$00
 ;        BNE DetectKey
 ;        JSR ROMCOPY
-;        JSR OVERLAYON
+
 DetectKey:
         ;; detect any key pressed
         LDA#$7A
@@ -831,93 +823,6 @@ PrintRomTitleNext:
         BNE PrintRomTitleNext
         RTS
 
-        ;; ---------------------------------------------------------
-        ;; Stop the machine, copy some host RAM into HIRAM
-        ;; then enable the remapping in CPLD, allow machine to continue
-        ;; ---------------------------------------------------------
-        .DEFINE         PZ_NMI         $F6
-        .DEFINE         NMI_HANDLER    $0D00
-	.DEFINE		LOMEM_MAPSTART $0000
-	.DEFINE		HIMEM_MAPSTART $FE0000
-	.DEFINE		HIMEM_MAPLEN   $8000    ; overlay covers 32K now
-
-OVERLAYON:
-	JSR DieIfNot65816
-	MAC_MODE816   ; also sets interrupt mask
-	; nobble the NMI handler temporarily
-	LDA NMI_HANDLER
-	STA PZ_NMI
-        LDA #$40  ; RTI
-	STA NMI_HANDLER
-
-        PHB                     ; save DBR because block moves change it
-
-	;; copy low (host) memory into high (fast) memory
-	;; block copy routine - ought really to re-use this code
-        REP #%00110000        ; 16 bit index registers on
-        .I16
-        .A16
-        ;; MVN <destbank> <srcbank> with Y as dest addr, X as source addr, A as bytecount-1
-        LDX #LOMEM_MAPSTART            ;; lower 16 bits of source
-        LDY #(HIMEM_MAPSTART & $ffff)  ;; lower 16 bits of destination
-        LDA #HIMEM_MAPLEN-1
-        MVN ^HIMEM_MAPSTART, ^LOMEM_MAPSTART
-        SEP #%00110000 ; Back to 8b registers
-        .I8
-        .A8
-
-        ; switch in the memory mapping using 24-bit addressing
-	LDA CPLD_MAPREG
-	ORA #CPLD_RAM_MAPMASK
-	STA CPLD_MAPREG
-
-        PLB                     ; restore DBR (from the stack in the mapped state)
-
-        ; restore the NMI handler
-        LDA PZ_NMI
-        STA NMI_HANDLER
-
-	MAC_MODE02 ; also re-enables interrupts
-	RTS
-
-OVERLAYOFF:
-	JSR DieIfNot65816
-	MAC_MODE816   ; also sets interrupt mask
-	; nobble the NMI handler temporarily
-	LDA NMI_HANDLER
-	STA PZ_NMI
-        LDA #$40  ; RTI
-	STA NMI_HANDLER
-
-        PHB                     ; save DBR because block moves change it
-				; take care to save in the mapped state
-				; so when we copy down, it's there to retrieve
-
-        ; switch out the memory mapping by clearing the control bit
-	LDA CPLD_MAPREG
-	AND #($ff-CPLD_RAM_MAPMASK)
-	STA CPLD_MAPREG
-
-	;; block copy routine - ought really to re-use this code
-        REP #%00110000        ; 16 bit index registers on
-        .I16
-        .A16
-        ;; MVN <destbank> <srcbank> with Y as dest addr, X as source addr, A as bytecount-1
-        LDX #(HIMEM_MAPSTART & $ffff)  ;; lower 16 bits of source
-        LDY #LOMEM_MAPSTART            ;; lower 16 bits of destination
-        LDA #HIMEM_MAPLEN-1
-        MVN ^LOMEM_MAPSTART, ^HIMEM_MAPSTART
-        PLB                     ; restore DBR
-        SEP #%00110000 ; Back to 8b registers
-        .I8
-        .A8
-
-        ; restore the NMI handler
-        LDA PZ_NMI
-        STA NMI_HANDLER
-
-	MAC_MODE02 ; also re-enables interrupts
-	RTS
 
         ;; ---------------------------------------------------------
         ;; ROMCOPY - call both the OSCOPY and COPY8ROMS functions
