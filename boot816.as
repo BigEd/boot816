@@ -139,7 +139,6 @@ LOUT:   PLA
         RTS                     ; offer help rqst to other roms by not altering A
 BTEXT:  .BYTE $0D
         .BYTE "BOOT816 ROM - new * commands",$0D
-        .BYTE "  BIST20",$0D
         .BYTE "  HITESTHIMEM",$0D
         .BYTE "  REPORTCPU",$0D
         .BYTE "  REPORTHIMEM",$0D
@@ -213,9 +212,6 @@ HOP:    RTS
 EXEC:   JMP ($0A00)
         ;; Table of command names and jump targets
 COMLIST:
-        .BYTE "BIST20"
-        .BYTE >BIST20
-        .BYTE <BIST20
 .ifdef IRQINSTALL_D
         .BYTE "IRQINSTALL"
         .BYTE >IRQINSTALL
@@ -836,20 +832,6 @@ PrintRomTitleNext:
         RTS
 
         ;; ---------------------------------------------------------
-        ;; Run multiple iterations of testhimem and hitesthimem
-        ;; ---------------------------------------------------------
-
-BIST20:
-        LDA #20
-BIST:   PHA
-        JSR TESTHIMEM
-        JSR HITESTHIMEM
-        PLA
-        DEC
-        BNE BIST
-        RTS
-
-        ;; ---------------------------------------------------------
         ;; Stop the machine, copy some host RAM into HIRAM
         ;; then enable the remapping in CPLD, allow machine to continue
         ;; ---------------------------------------------------------
@@ -860,7 +842,6 @@ BIST:   PHA
 	.DEFINE		HIMEM_MAPLEN   $8000    ; overlay covers 32K now
 
 OVERLAYON:
-
 	JSR DieIfNot65816
 	MAC_MODE816   ; also sets interrupt mask
 	; nobble the NMI handler temporarily
@@ -1024,65 +1005,35 @@ ROMCOPY:
         ;; ---------------------------------------------------------
         ;; OS-ROM-copy: copy 15k and 256bytes from bank0 to himem
         ;; *OSCOPY
-	;; much code duplication with MEMCOPY - could be shared
         ;; ---------------------------------------------------------
-        .DEFINE         OSCOPY_SRC	     $C000
-        .DEFINE         OSCOPY_DST         $FEC000  ; implicit - not used
-        .DEFINE         COPY_LEN             $3C00  ; 31k
+        .DEFINE         OSCOPY1_SRC	      $C000
+        .DEFINE         OSCOPY1_DST         $FEC000  ; implicit - not used
+        .DEFINE         COPY1_LEN             $3C00  ; 15k
+        .DEFINE         OSCOPY2_SRC	      $FF00
+        .DEFINE         OSCOPY2_DST         $FEFF00  ; implicit - not used
+        .DEFINE         COPY2_LEN              $100  ; 256 bytes
 
 OSCOPY:
-	;; allocate space on the stack
-	TSX
-	TXA
-	TAY ; original stack ptr
-	SEC
-	SBC #(MEMCOPYCODE_END - MEMCOPYCODE + 1)
-	TAX
-	TXS
-	PHY ; save original stack ptr so we can de-allocate
+        MAC_MODE816   ; also sets interrupt mask
+        PHB                     ; save DBR because block moves change it
+        REP #%00110000        ; 16 bit index registers on
+        .I16
+        .A16
+        ;; MVN <destbank> <srcbank> with Y as dest addr, X as source addr, A as bytecount-1
 
-	; init our pointer to the stack area
-	INC A
-	STA ZP_PTR_1
-	LDA #1			; stack is certainly page 1 - we're in emulation mode
-	STA ZP_PTR_1+1
-
-	LDY #(MEMCOPYCODE_END - MEMCOPYCODE)
-OSCOPY_BACK_1:
-	LDA MEMCOPYCODE,Y
-	STA (ZP_PTR_1),Y
-	DEY
-	BPL OSCOPY_BACK_1	; we copy fewer than 127 bytes
-
-	;; patch up the copying routine before using it
-	LDA #>(OSCOPY_SRC)
-	STA MEMCOPY_PATCH_SRC-MEMCOPYCODE+4,S
-	STA MEMCOPY_PATCH_DEST-MEMCOPYCODE+4,S
-	LDA #>(COPY_LEN-1)
-	STA MEMCOPY_PATCH_LEN-MEMCOPYCODE+4,S
-
-	;; copy just a little more: ff00 to ffff inclusive
-	LDX #0
-	JSR (ZP_PTR_1,X)
-	;; patch up the copying routine before using it
-	LDA #$ff
-	STA MEMCOPY_PATCH_SRC-MEMCOPYCODE+4,S
-	STA MEMCOPY_PATCH_DEST-MEMCOPYCODE+4,S
-	LDA #$ff
-	STA MEMCOPY_PATCH_LEN-MEMCOPYCODE+3,S
-	LDA #$0
-	STA MEMCOPY_PATCH_LEN-MEMCOPYCODE+4,S
-
-	LDX #0
-	JSR (ZP_PTR_1,X)
-
-OSCOPY_DONE:
-	;; to debug this, bear in mind that about 9 bytes of what we place
- 	;; will have been overwritten by the time we return to CLI
-
-	;; deallocate our stack usage
-	PLX
-	TXS
+        LDX #OSCOPY1_SRC            ;; lower 16 bits of source
+        LDY #(OSCOPY1_DST & $ffff)  ;; lower 16 bits of destination
+        LDA #(COPY1_LEN-1)
+        MVN ^OSCOPY1_DST, $0
+        LDX #OSCOPY2_SRC            ;; lower 16 bits of source
+        LDY #(OSCOPY2_DST & $ffff)  ;; lower 16 bits of destination
+        LDA #(COPY2_LEN-1)
+        MVN ^OSCOPY2_DST, $0
+        SEP #%00110000 ; Back to 8b registers
+        .I8
+        .A8
+        PLB                     ; restore DBR
+        MAC_MODE02 ; also re-enables interrupts
 	RTS
 
         ;; ---------------------------------------------------------
