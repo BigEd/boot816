@@ -762,26 +762,27 @@ BootFS:
         JSR REPORTCPU
         JSR DetectCPUType
         CMP #$03
-        BNE DetectKey
+	RTS
+;        BNE DetectKey
 ;        JSR DetectHiMem
 ;        CPY #$00
 ;        BNE DetectKey
 ;        JSR ROMCOPY
 
-DetectKey:
-        ;; detect any key pressed
-        LDA#$7A
-        JSR OSBYTE
-        CPX #$FF
-        BNE BootFSSkip1
-        ;; redirect the serial if no key was pressed
-        JSR PRNTSTR
-        .BYTE "- Setting serial IO, 19200 baud", $0D,"(hold any key during boot to disable)", $0D
-        .BYTE 13
-        NOP
-        JSR SetSerialRedirect2
-BootFSSkip1:
-        RTS
+; DetectKey:
+;         ;; detect any key pressed
+;         LDA#$7A
+;         JSR OSBYTE
+;         CPX #$FF
+;         BNE BootFSSkip1
+;         ;; redirect the serial if no key was pressed
+;         JSR PRNTSTR
+;         .BYTE "- Setting serial IO, 19200 baud", $0D,"(hold any key during boot to disable)", $0D
+;         .BYTE 13
+;         NOP
+;         JSR SetSerialRedirect2
+; BootFSSkip1:
+;         RTS
 
         ;; ----------------------------------------------------------
         ;; SERVICE 3 - BOOT FS
