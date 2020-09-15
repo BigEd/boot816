@@ -788,10 +788,14 @@ BootFSSkip1:
         ;; ----------------------------------------------------------
 Service3Reset:
         PHA                     ; we should not claim this service
+        PHX                     ; preserve all registers
+        PHY
 ;;         JSR PRNTSTR             ; Print inline text up to NOP
 ;;         .BYTE $0D,"BOOT816 saw a service 3",$0D
 ;;         NOP
         JSR BootFS
+        PLY                     ; restore everything
+        PLX
         PLA
         RTS
 
