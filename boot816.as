@@ -8,7 +8,7 @@
         ;; 65816 configurations.
         ;;
         ;; ---------------------------------------------------------
-        ;; (C) 2008-2016 Ed Spittles, Richard Evans
+        ;; (C) 2008-2020 Ed Spittles, Richard Evans
         ;; ---------------------------------------------------------
         ;;
         .SETCPU "65816"
@@ -67,9 +67,9 @@ SERV:   JMP CHECK               ; service entry
 TYPE:   .BYTE $82               ; ROM type=Serv+6502
 OFST:   .BYTE COPYRT-LANG
 VERNO:  .BYTE $02
-TITLE:  .BYTE "BOOT816 - 65816 support",$0D
+TITLE:  .BYTE "Boot816 - 65816 support",$0D
         .BYTE $00
-TITLE2: .BYTE "2008-16"
+TITLE2: .BYTE "2008-20"
 COPYRT: .BYTE $00
         .BYTE "(C) Rich Evans & Ed Spittles",$0D
         .BYTE $00
@@ -279,7 +279,6 @@ TST816:
         ;; don't need to go into native mode for the test.
         ;; ------------------------------------------------------------------------
 
-
 REPORTHIMEM:
         JSR DieIfNot65816
         JSR DetectHiMem         ; result returned in Y
@@ -323,7 +322,6 @@ DieIfNoHiMem:
         PLA
         JMP MSG_NOHIMEM
         ; done
-
 
         ;; ----------------------------------------------------------------------
         ;; TESTHIMEM (*TESTHIMEM)
@@ -560,7 +558,6 @@ BlockCopy:
         .A8
 
 BlockCpyEnd:
-
         MAC_MODE02
         JSR PRNTSTR
         .BYTE " Done",$0D,"March0: >wr(0)      .."
@@ -758,31 +755,10 @@ SetSerialRedirect2:
         ;; BootFS - initialize the ROM at boot time
         ;; ----------------------------------------------------------
 BootFS:
-        JSR PrintRomTitle
-        JSR REPORTCPU
         JSR DetectCPUType
         CMP #$03
+        BEQ PrintRomTitle
 	RTS
-;        BNE DetectKey
-;        JSR DetectHiMem
-;        CPY #$00
-;        BNE DetectKey
-;        JSR ROMCOPY
-
-; DetectKey:
-;         ;; detect any key pressed
-;         LDA#$7A
-;         JSR OSBYTE
-;         CPX #$FF
-;         BNE BootFSSkip1
-;         ;; redirect the serial if no key was pressed
-;         JSR PRNTSTR
-;         .BYTE "- Setting serial IO, 19200 baud", $0D,"(hold any key during boot to disable)", $0D
-;         .BYTE 13
-;         NOP
-;         JSR SetSerialRedirect2
-; BootFSSkip1:
-;         RTS
 
         ;; ----------------------------------------------------------
         ;; SERVICE 3 - BOOT FS
@@ -791,9 +767,6 @@ Service3Reset:
         PHA                     ; we should not claim this service
         PHX                     ; preserve all registers
         PHY
-;;         JSR PRNTSTR             ; Print inline text up to NOP
-;;         .BYTE $0D,"BOOT816 saw a service 3",$0D
-;;         NOP
         JSR BootFS
         PLY                     ; restore everything
         PLX
@@ -828,13 +801,11 @@ PrintRomTitleNext:
         BNE PrintRomTitleNext
         RTS
 
-
         ;; ---------------------------------------------------------
         ;; ROMCOPY - call both the OSCOPY and COPY8ROMS functions
         ;;           to make HIMEM copies of the firmware
         ;; *ROMCOPY
-        ;; ---------------------------------------------------------
-        
+        ;; ---------------------------------------------------------        
 ROMCOPY:
        JSR DieIfNot65816
        JSR PRNTSTR
@@ -888,7 +859,6 @@ OSCOPY:
         PLB                     ; restore DBR
         MAC_MODE02 ; also re-enables interrupts
 	RTS
-
 
         ;; ---------------------------------------------------------
         ;; a fixed copy of 16k of SWROM 15 from bank 0 to FE
@@ -950,7 +920,6 @@ NEXTROM2:
          INY
          CPY #16
          BNE NEXTROM2
-
          RTS
 
 
