@@ -809,13 +809,13 @@ PrintRomTitleNext:
 ROMCOPY:
        JSR DieIfNot65816
        JSR PRNTSTR
-       .BYTE "Copying MOS to high memory ..."
-       NOP
-       JSR OSCOPY
-       JSR PRNTSTR
        .BYTE "DONE.", $0D,"Copying 8 ROMs to high memory ..."
        NOP
        JSR COPY8ROMS
+       JSR PRNTSTR
+       .BYTE "Copying MOS to high memory ..."
+       NOP
+       JSR OSCOPY
        JSR PRNTSTR
        .BYTE "DONE.", $0D
        NOP
@@ -874,29 +874,40 @@ OSCOPY:
 COPY8ROMS:
          ;; we need about 50 bytes, somewhere in RAM, to do the copying
          ; first we copy our master routine, then patch it and then use it
-         ; it would be clever to allocate on the stack
-         ; but a bit too clever
-         ; so let's just use some spare RAM from somewhere
-         ; we could allocate ROM workspace officially
-         ; or just pick somewhere which looks unimportant
-         .DEFINE SCRATCHRAM $7F80  ; in screen memory, for now!
+         ; the master routine is copied to a high bank where the MOS will
+         ; land shortly.
 
-         JSR INSTALLMEMCOPY
+         ; using 816 block move
+         MAC_MODE816   ; also sets interrupt mask
+         REP #%00110000        ; 16 bit index registers on
+         .I16
+         .A16
+         LDX #MEMCOPYCODE
+         LDY #(OSCOPY1_DST & $FFFF)
+	 LDA #(MEMCOPYCODE_END - MEMCOPYCODE)
+         PHB                     ; save DBR because block moves change it
+         MVN ^OSCOPY1_DST, $0
+         PLB                     ; restore DBR
+         SEP #%00110000 ; Back to 8b registers
+         .I8
+         .A8
+         MAC_MODE02 ; also re-enables interrupts
 
+         ; the block move code now safe in high memory
          ; copy the 4 RAMish ROMs, 4 to 7, to bank EC
          LDA #$EC
-         STA MEMCOPY_PATCH_MVN - MEMCOPYCODE+SCRATCHRAM +1
+         STA OSCOPY1_DST + MEMCOPY_PATCH_MVN - MEMCOPYCODE +1 ;; bug! should be long address
          LDY #4
 NEXTROM1:
          TYA
-         STA MEMCOPY_PATCH_ROM - MEMCOPYCODE+SCRATCHRAM +1
+         STA OSCOPY1_DST + MEMCOPY_PATCH_ROM - MEMCOPYCODE +1
          ROR        ;; move ROM index into top bits for destination
          ROR
          ROR
          AND #$C0
-         STA MEMCOPY_PATCH_DEST - MEMCOPYCODE+SCRATCHRAM +2
+         STA OSCOPY1_DST + MEMCOPY_PATCH_DEST - MEMCOPYCODE +2
          PHY
-         JSR SCRATCHRAM
+         JSR OSCOPY1_DST
          PLY
          INY
          CPY #8
@@ -904,44 +915,23 @@ NEXTROM1:
 
          ; copy the top 4 ROMs, 12 to 15, to bank ED
          LDA #$ED
-         STA MEMCOPY_PATCH_MVN - MEMCOPYCODE+SCRATCHRAM +1
+         STA OSCOPY1_DST + MEMCOPY_PATCH_MVN - MEMCOPYCODE +1
          LDY #12
 NEXTROM2:
          TYA
-         STA MEMCOPY_PATCH_ROM - MEMCOPYCODE+SCRATCHRAM +1
+         STA OSCOPY1_DST + MEMCOPY_PATCH_ROM - MEMCOPYCODE +1
          ROR        ;; move ROM index into top bits for destination
          ROR
          ROR
          AND #$C0
-         STA MEMCOPY_PATCH_DEST - MEMCOPYCODE+SCRATCHRAM +2
+         STA OSCOPY1_DST + MEMCOPY_PATCH_DEST - MEMCOPYCODE +2
          PHY
-         JSR SCRATCHRAM
+         JSR OSCOPY1_DST
          PLY
          INY
          CPY #16
          BNE NEXTROM2
          RTS
-
-
-        ;; we've allocated ourselves two bytes in page zero
-        ;; rather boldly and unofficially
-	.DEFINE		ZP_PTR_1	         $70
-
-INSTALLMEMCOPY:
-	; init our pointer to the destination area
-	LDA #<SCRATCHRAM
-	STA ZP_PTR_1
-	LDA #>SCRATCHRAM
-	STA ZP_PTR_1+1
-
-	LDY #(MEMCOPYCODE_END - MEMCOPYCODE)
-MEMCOPY_BACK_1:
-	LDA MEMCOPYCODE,Y
-	STA (ZP_PTR_1),Y
-	DEY
-	BPL MEMCOPY_BACK_1	; we copy fewer than 127 bytes
-
-	RTS
 
         ;; ---------------------------------------------------------
         ;; Code to be copied into RAM so it can copy SWROM
