@@ -876,7 +876,6 @@ COPY8ROMS:
          ; first we copy our master routine, then patch it and then use it
          ; the master routine is copied to a high bank where the MOS will
          ; land shortly.
-
          ; using 816 block move
          MAC_MODE816   ; also sets interrupt mask
          REP #%00110000        ; 16 bit index registers on
@@ -893,19 +892,28 @@ COPY8ROMS:
          .A8
          MAC_MODE02 ; also re-enables interrupts
 
-         ; the block move code now safe in high memory
+; we need to compute some offsets into the block move code
+; but we're struggling with ca65's type conversions of expressions
+MEMCOPY_ROM_OFFSET=$3
+MEMCOPY_DEST_OFFSET=$13
+MEMCOPY_MVN_OFFSET=$19
+.ASSERT MEMCOPY_ROM_OFFSET = MEMCOPY_PATCH_ROM - MEMCOPYCODE, error, "precomputed difference fail"
+.ASSERT MEMCOPY_DEST_OFFSET = MEMCOPY_PATCH_DEST - MEMCOPYCODE, error, "precomputed difference fail"
+.ASSERT MEMCOPY_MVN_OFFSET = MEMCOPY_PATCH_MVN - MEMCOPYCODE, error, "precomputed difference fail"
+
+         ; the block move code now safely in high memory
          ; copy the 4 RAMish ROMs, 4 to 7, to bank EC
          LDA #$EC
-         STA OSCOPY1_DST + MEMCOPY_PATCH_MVN - MEMCOPYCODE +1 ;; bug! should be long address
+         STA OSCOPY1_DST + MEMCOPY_MVN_OFFSET +1
          LDY #4
 NEXTROM1:
          TYA
-         STA OSCOPY1_DST + MEMCOPY_PATCH_ROM - MEMCOPYCODE +1
+         STA OSCOPY1_DST + MEMCOPY_ROM_OFFSET +1
          ROR        ;; move ROM index into top bits for destination
          ROR
          ROR
          AND #$C0
-         STA OSCOPY1_DST + MEMCOPY_PATCH_DEST - MEMCOPYCODE +2
+         STA OSCOPY1_DST + MEMCOPY_DEST_OFFSET +2
          PHY
          JSR OSCOPY1_DST
          PLY
@@ -915,16 +923,16 @@ NEXTROM1:
 
          ; copy the top 4 ROMs, 12 to 15, to bank ED
          LDA #$ED
-         STA OSCOPY1_DST + MEMCOPY_PATCH_MVN - MEMCOPYCODE +1
+         STA OSCOPY1_DST + MEMCOPY_MVN_OFFSET +1
          LDY #12
 NEXTROM2:
          TYA
-         STA OSCOPY1_DST + MEMCOPY_PATCH_ROM - MEMCOPYCODE +1
+         STA OSCOPY1_DST + MEMCOPY_ROM_OFFSET +1
          ROR        ;; move ROM index into top bits for destination
          ROR
          ROR
          AND #$C0
-         STA OSCOPY1_DST + MEMCOPY_PATCH_DEST - MEMCOPYCODE +2
+         STA OSCOPY1_DST + MEMCOPY_DEST_OFFSET +2
          PHY
          JSR OSCOPY1_DST
          PLY
