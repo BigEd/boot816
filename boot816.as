@@ -870,6 +870,7 @@ OSCOPY:
 	;; we might one day want a generic MEMCOPY with parameters
 	;; perhaps this should be called ROMCOPY
         ;; ---------------------------------------------------------
+        MEMCOPY_HIGH = OSCOPY1_DST ; a safe place for the copy code
 
 COPY8ROMS:
          ;; we need about 50 bytes, somewhere in RAM, to do the copying
@@ -882,10 +883,10 @@ COPY8ROMS:
          .I16
          .A16
          LDX #MEMCOPYCODE
-         LDY #(OSCOPY1_DST & $FFFF)
+         LDY #(MEMCOPY_HIGH & $FFFF)
 	 LDA #(MEMCOPYCODE_END - MEMCOPYCODE)
          PHB                     ; save DBR because block moves change it
-         MVN ^OSCOPY1_DST, $0
+         MVN ^MEMCOPY_HIGH, $0
          PLB                     ; restore DBR
          SEP #%00110000 ; Back to 8b registers
          .I8
@@ -904,18 +905,18 @@ MEMCOPY_MVN_OFFSET=$19
          ; the block move code now safely in high memory
          ; copy the 4 RAMish ROMs, 4 to 7, to bank EC
          LDA #$EC
-         STA OSCOPY1_DST + MEMCOPY_MVN_OFFSET +1
+         STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
          LDY #4
 NEXTROM1:
          TYA
-         STA OSCOPY1_DST + MEMCOPY_ROM_OFFSET +1
+         STA MEMCOPY_HIGH + MEMCOPY_ROM_OFFSET +1
          ROR        ;; move ROM index into top bits for destination
          ROR
          ROR
          AND #$C0
-         STA OSCOPY1_DST + MEMCOPY_DEST_OFFSET +2
+         STA MEMCOPY_HIGH + MEMCOPY_DEST_OFFSET +2
          PHY
-         JSR OSCOPY1_DST
+         JSL MEMCOPY_HIGH
          PLY
          INY
          CPY #8
@@ -923,18 +924,18 @@ NEXTROM1:
 
          ; copy the top 4 ROMs, 12 to 15, to bank ED
          LDA #$ED
-         STA OSCOPY1_DST + MEMCOPY_MVN_OFFSET +1
+         STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
          LDY #12
 NEXTROM2:
          TYA
-         STA OSCOPY1_DST + MEMCOPY_ROM_OFFSET +1
+         STA MEMCOPY_HIGH + MEMCOPY_ROM_OFFSET +1
          ROR        ;; move ROM index into top bits for destination
          ROR
          ROR
          AND #$C0
-         STA OSCOPY1_DST + MEMCOPY_DEST_OFFSET +2
+         STA MEMCOPY_HIGH + MEMCOPY_DEST_OFFSET +2
          PHY
-         JSR OSCOPY1_DST
+         JSL MEMCOPY_HIGH
          PLY
          INY
          CPY #16
@@ -995,7 +996,7 @@ MEMCOPY_PATCH_MVN:
 	STA ROMLATCH
 
 MEMCOPYCODE_END:
-        RTS
+        RTL
 
 
         ;; ---------------------------------------------------------
