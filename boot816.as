@@ -809,11 +809,11 @@ PrintRomTitleNext:
 ROMCOPY:
        JSR DieIfNot65816
        JSR PRNTSTR
-       .BYTE "DONE.", $0D,"Copying 8 ROMs to high memory ..."
+       .BYTE "Copying 8 ROMs to high memory ..."
        NOP
        JSR COPY8ROMS
        JSR PRNTSTR
-       .BYTE "Copying MOS to high memory ..."
+       .BYTE "DONE.", $0D,"Copying MOS to high memory ..."
        NOP
        JSR OSCOPY
        JSR PRNTSTR
