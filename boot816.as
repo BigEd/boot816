@@ -1,6 +1,6 @@
         ;; ---------------------------------------------------------
         ;;
-        ;; Boot816
+        ;; Boot816 (support ROM for Beeb816 accelerator upgrade)
         ;;
         ;; Boot ROM based on Ed's code to detect CPU type and
         ;; redirect IO to the serial port on startup. Added
@@ -16,7 +16,7 @@
 
         .DEFINE ROMLATCH	$FE30
         .DEFINE ROMLATCHCOPY	  $F4
-	.DEFINE		CPLD_MAPREG    $800003      ; CPLD MAP and clock control register location
+	.DEFINE		CPLD_MAPREG    $800000      ; CPLD MAP and clock control register location
 	.DEFINE		CPLD_RAM_MAPMASK   $10      ; NB bits 0..3 are clock control bits and not to be disturbed
 	.DEFINE		CPLD_ROM_MAPMASK   $20      ; NB bits 0..3 are clock control bits and not to be disturbed
 
@@ -66,12 +66,12 @@ LANG:   .BYTE $00,$00,$00       ; no language entry
 SERV:   JMP CHECK               ; service entry
 TYPE:   .BYTE $82               ; ROM type=Serv+6502
 OFST:   .BYTE COPYRT-LANG
-VERNO:  .BYTE $02
-TITLE:  .BYTE "Boot816 - 65816 support",$0D
+VERNO:  .BYTE $10
+TITLE:  .BYTE "BEEB816 support ROM",$0D
         .BYTE $00
 TITLE2: .BYTE "2008-20"
 COPYRT: .BYTE $00
-        .BYTE "(C) Rich Evans & Ed Spittles",$0D
+        .BYTE "(C) Revaldinho & BigEd",$0D
         .BYTE $00
 CHECK:  CMP #$04                ; is it a command?
         BNE HPCH                ; ..no, is it help?
@@ -138,7 +138,7 @@ LOUT:   PLA
         PLP
         RTS                     ; offer help rqst to other roms by not altering A
 BTEXT:  .BYTE $0D
-        .BYTE "BOOT816 ROM - new * commands",$0D
+        .BYTE "BEEB816",$0D
         .BYTE "  HITESTHIMEM",$0D
         .BYTE "  REPORTCPU",$0D
         .BYTE "  REPORTHIMEM",$0D
@@ -151,13 +151,15 @@ BTEXT:  .BYTE $0D
 .ifdef IRQINSTALL_D
         .BYTE "  IRQINSTALL",$0D
 .endif
-        .BYTE "  HIPEEK",$0D
-        .BYTE "  HIPOKE",$0D
-        .BYTE "  HEXDUMP",$0D
+        .BYTE "  HIPEEK <address>",$0D
+        .BYTE "  HIPOKE <address> <data>",$0D
+        .BYTE "  HEXDUMP <start> <end>",$0D
         .BYTE "  ROMCOPY",$0D
+        .BYTE "  TURBO",$0D
+        .BYTE "  SHADOW",$0D
         .BYTE $00
 LTEXT:  .BYTE $0D
-        .BYTE "BOOT816 $Rev: 381 $",$0D
+        .BYTE "BEEB816 v1.00",$0D
         .BYTE $00
 LOCHK:  LDA COMLIST,X           ; routine to cater for lower case letters
         CLC
@@ -250,6 +252,12 @@ COMLIST:
         .BYTE "ROMCOPY"
         .BYTE >ROMCOPY
         .BYTE <ROMCOPY
+        .BYTE "TURBO"
+        .BYTE >TURBO
+        .BYTE <TURBO
+        .BYTE "SHADOW"
+        .BYTE >SHADOW
+        .BYTE <SHADOW
         .BYTE $FF
         ;; ------------------------------------------------------------------------
         ;; (*)TEST816
@@ -1084,6 +1092,25 @@ HIPEEKPOKEFAIL:
         LDY #4
         JMP ReportResult
         ; done
+
+TURBO:
+        JSR ROMCOPY ; copies sideways ROMs and OS
+        LDA #$14    ; enable cached video RAM, map ROMs, high speed clock /1
+        STA CPLD_MAPREG
+        JSR PRNTSTR
+        .BYTE "Turbo engaged!", $0D
+        NOP
+        RTS
+
+SHADOW:
+        LDA CPLD_MAPREG
+        ORA #$80   ; enable shadow RAM (video memory is hidden, HIMEM can be 8000)
+        STA CPLD_MAPREG
+        JSR PRNTSTR
+        .BYTE "Shadow RAM enabled: HIMEM can be 8000", $0D
+        NOP
+        RTS
+
 
         ;; ---------------------------------------------------------
         ;; Dump a region of memory in hex
