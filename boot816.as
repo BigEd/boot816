@@ -18,7 +18,7 @@
         .DEFINE ROMLATCHCOPY	  $F4
 	.DEFINE		CPLD_MAPREG    $800003      ; CPLD MAP and clock control register location
 	.DEFINE		CPLD_RAM_MAPMASK   $10      ; NB bits 0..3 are clock control bits and not to be disturbed
-	.DEFINE		CPLD_ROM_MAPMASK   $20      ; NB bits 0..3 are clock control bits and not to be disturbed        
+	.DEFINE		CPLD_ROM_MAPMASK   $20      ; NB bits 0..3 are clock control bits and not to be disturbed
 
 	.DEFINE OSRDRM  $FFB9 rom number in Y, address in &F6/7, X and Y not preserved
         .DEFINE GSINIT  $FFC2
@@ -275,7 +275,7 @@ TST816:
         ;; that the operation is not aliased to a location in the normal memory map
         ;;
         ;;
-        ;; Checks that an '816 is fitted before attempting to check himem but 
+        ;; Checks that an '816 is fitted before attempting to check himem but
         ;; don't need to go into native mode for the test.
         ;; ------------------------------------------------------------------------
 
@@ -681,7 +681,7 @@ DetectionNotRockwell:
 	JSR PRNTSTR              	; Print inline text up to NOP
 	.BYTE "65802 or 65816",$0D
 	NOP
-	RTS	
+	RTS
         ; detect the CPU type
 	; code is from
 	;   comp.sys.apple2
@@ -805,7 +805,7 @@ PrintRomTitleNext:
         ;; ROMCOPY - call both the OSCOPY and COPY8ROMS functions
         ;;           to make HIMEM copies of the firmware
         ;; *ROMCOPY
-        ;; ---------------------------------------------------------        
+        ;; ---------------------------------------------------------
 ROMCOPY:
        JSR DieIfNot65816
        JSR PRNTSTR
@@ -824,7 +824,7 @@ ROMCOPY:
        ;; ORA #CPLD_ROM_MAPMASK
        ;; STA CPLD_MAPREG
        RTS
-       
+
 
         ;; ---------------------------------------------------------
         ;; OS-ROM-copy: copy 15k and 256bytes from bank0 to himem
@@ -896,8 +896,14 @@ COPY8ROMS:
 ; we need to compute some offsets into the block move code
 ; but we're struggling with ca65's type conversions of expressions
 MEMCOPY_ROM_OFFSET=$3
-MEMCOPY_DEST_OFFSET=$13
-MEMCOPY_MVN_OFFSET=$19
+MEMCOPY_DEST_OFFSET=$10
+MEMCOPY_MVN_OFFSET=$16
+
+; Uncomment these to recompute the numbers in the assignments above
+; LDA # MEMCOPY_PATCH_ROM - MEMCOPYCODE
+; LDA # MEMCOPY_PATCH_DEST- MEMCOPYCODE
+; LDA # MEMCOPY_PATCH_MVN - MEMCOPYCODE
+
 .ASSERT MEMCOPY_ROM_OFFSET = MEMCOPY_PATCH_ROM - MEMCOPYCODE, error, "precomputed difference fail"
 .ASSERT MEMCOPY_DEST_OFFSET = MEMCOPY_PATCH_DEST - MEMCOPYCODE, error, "precomputed difference fail"
 .ASSERT MEMCOPY_MVN_OFFSET = MEMCOPY_PATCH_MVN - MEMCOPYCODE, error, "precomputed difference fail"
@@ -916,7 +922,9 @@ NEXTROM1:
          AND #$C0
          STA MEMCOPY_HIGH + MEMCOPY_DEST_OFFSET +2
          PHY
+         MAC_MODE816   ; also sets interrupt mask
          JSL MEMCOPY_HIGH
+         MAC_MODE02 ; also re-enables interrupts
          PLY
          INY
          CPY #8
@@ -935,7 +943,9 @@ NEXTROM2:
          AND #$C0
          STA MEMCOPY_HIGH + MEMCOPY_DEST_OFFSET +2
          PHY
+         MAC_MODE816   ; also sets interrupt mask
          JSL MEMCOPY_HIGH
+         MAC_MODE02 ; also re-enables interrupts
          PLY
          INY
          CPY #16
@@ -948,9 +958,9 @@ NEXTROM2:
 	;; 43 bytes ($2B bytes) approx - can fit in stack
         ;; ---------------------------------------------------------
         .DEFINE         MEMCOPY_SRC	       $8000
-	.DEFINE		MEMCOPY_SOURCE_ROM_DUMMY $0F  ; default to copying with ROM 15 in the map
-        .DEFINE         MEMCOPY_DST          $EDC000  ; for testing: $018000 
-        .DEFINE         MEMCOPY_LEN            $4000  ; just copy one ROM's worth
+	.DEFINE		MEMCOPY_SOURCE_ROM_DUMMY $FF ; Byte will be patched for each copy
+        .DEFINE         MEMCOPY_DST          $FF0000 ; Top two bytes will be patched for each copy
+        .DEFINE         MEMCOPY_LEN            $4000 ; Always 16K Bytes per ROM
 
 MEMCOPYCODE:
 
@@ -962,12 +972,7 @@ MEMCOPY_PATCH_ROM:
 
 	STA ROMLATCHCOPY
 	STA ROMLATCH
-
-        MAC_MODE816   ; also sets interrupt mask
-	;; note that the PHB/PLB may have to be external to the block copy
-        ;; to cope with the overlay case
         PHB                     ; save DBR because block moves change it
-
         ;; block copy routine - ought really to re-use this code
         REP #%00110000        ; 16 bit index registers on
         .I16
@@ -987,11 +992,7 @@ MEMCOPY_PATCH_MVN:
         .A8
 
         PLB                     ; restore DBR
-
-        MAC_MODE02 ; also re-enables interrupts
-
-	;; re-select the original ROM
-	PLA
+	PLA                     ; re-select the original ROM
 	STA ROMLATCHCOPY
 	STA ROMLATCH
 
@@ -1058,7 +1059,7 @@ HIPOKE:
         JSR OSNEWL
 
         LDA $70                ;; save the data byte
-        TAX                  
+        TAX
         PLA                    ;; now recover the 3-byte address we had
         STA $72
         PLA
@@ -1253,7 +1254,7 @@ argparse:
         STX $76       ; save the stack pointer so we can error out
         LDX #0        ; initial result = $000000
         STX $70       ; least sig. byte of result
-        STX $71       ; 
+        STX $71       ;
         STX $72       ; most sig. byte of result
         DEX           ; X will count number of nybbles - 1
 argloop:
@@ -1270,7 +1271,7 @@ argend:
         PLA           ; pull a low nibble
         STA $70       ; store in appropriate place
 
-        DEX           ; 
+        DEX           ;
         BMI argdone   ; branch if we're done
 
         PLA           ; pull a high nibble
@@ -1281,13 +1282,13 @@ argend:
         ORA $70       ; OR into appropriate byte
         STA $70       ; and store
 
-        DEX           ; 
+        DEX           ;
         BMI argdone   ; branch if we're done
 
         PLA           ; pull a low nibble
         STA $71       ; store in appropriate place
 
-        DEX           ; 
+        DEX           ;
         BMI argdone   ; branch if we're done
 
         PLA           ; pull a high nibble
@@ -1298,13 +1299,13 @@ argend:
         ORA $71       ; OR into appropriate byte
         STA $71       ; and store
 
-        DEX           ; 
+        DEX           ;
         BMI argdone   ; branch if we're done
 
         PLA           ; pull a low nibble
         STA $72       ; store in appropriate place
 
-        DEX           ; 
+        DEX           ;
         BMI argdone   ; branch if we're done
 
         PLA           ; pull a high nibble
@@ -1338,7 +1339,7 @@ argletters:
 
 argerr:
         LDX $76       ; recover the stack pointer
-        TXS 
+        TXS
         SEC           ; indicate failure to caller
         RTS
 
@@ -1359,7 +1360,7 @@ printhex1byte:
         LSR         ;
         JSR printhex1nibble  ; print the high nibble first
         PLA         ;get back A
-    
+
 printhex1nibble:
         CLC         ;clear carry flag
         AND #$0F    ;clear high nybble
