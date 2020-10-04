@@ -1015,8 +1015,9 @@ HIPEEK:
         JSR argparse           ;; place a 24-bit address in 70/71/72
         BCS HIPEEKPOKEFAIL
 
-        JSR print24bits
-        JSR OSNEWL
+        ; Comment out debug message which prints address to be PEEKd
+        ;JSR print24bits
+        ;JSR OSNEWL
 
 HIPEEK_peek:
         ; we're using 24-bit addressing in emulated mode: that's OK
@@ -1041,8 +1042,9 @@ HIPOKE:
         JSR argparse           ;; place a 24-bit address in 70/71/72
         BCS HIPEEKPOKEFAIL
 
-        JSR print24bits
-        JSR OSNEWL
+        ; Debug message printing out POKE address commented out
+        ;JSR print24bits
+        ;JSR OSNEWL
 
         LDA $70                ;; save the address - we're about to overwrite
         PHA
@@ -1055,8 +1057,9 @@ HIPOKE:
         JSR argparse           ;; return a one-byte datum in A8
         BCS HIPEEKPOKEFAIL3POP
 
-        JSR print8bits
-        JSR OSNEWL
+        ; Debug message printing out byte to HIPOKE commented out
+        ;JSR print8bits
+        ;JSR OSNEWL
 
         LDA $70                ;; save the data byte
         TAX
@@ -1069,8 +1072,10 @@ HIPOKE:
         TXA
         ; we're using 24-bit addressing in emulated mode: that's OK
         STA [$70]
-        JMP HIPEEK_peek        ;; re-read the value and print it
-
+        ; JMP to the PEEK routine to check the value poked commented out and replaced with RTS
+        ; JMP HIPEEK_peek        ;; re-read the value and print it
+        RTS
+        
 HIPEEKPOKEFAIL3POP:
         PLA
         PLA
