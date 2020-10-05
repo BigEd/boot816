@@ -801,7 +801,7 @@ Service27Reset:
         ;; ---------------------------------------------------------
 PrintRomTitle:
         LDX #$FF
-        LDA #$0D                ; Prepare to print newline
+        LDA #$00                ; Print NULL as first char
 PrintRomTitleNext:
         JSR OSASCI
         INX
