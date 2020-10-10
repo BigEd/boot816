@@ -1095,7 +1095,8 @@ HIPEEKPOKEFAIL:
 
 TURBO:
         JSR ROMCOPY ; copies sideways ROMs and OS
-        LDA #$14    ; enable cached video RAM, map ROMs, high speed clock /1
+        LDA CPLD_MAPREG
+        ORA #$14    ; map ROMs, high speed clock /1 and retain state of shadow/cached video RAM
         STA CPLD_MAPREG
         JSR PRNTSTR
         .BYTE "Turbo engaged!", $0D
