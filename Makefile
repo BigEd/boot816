@@ -11,7 +11,7 @@ clean:
 	rm -f *.o *.lst *.srec *.bin
 
 %.o : %.as
-	ca65 -l $< -D BASE=$(BASE) -D SRECORD_D=${SRECORD_D}
+	ca65 -l $<.log $< -D BASE=$(BASE) -D SRECORD_D=${SRECORD_D}
 
 %.bin: %.o
 	cl65 $< --target none --start-addr $(BASE) -o $@
