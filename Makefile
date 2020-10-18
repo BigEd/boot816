@@ -21,3 +21,13 @@ clean:
 	awk '/PAGE/,/RUN/' srec2telnet
 	cat $@
 	echo S1x
+
+%.ssd: %.bin
+	cp $< tmp
+	echo "\044.$*\t8000\t8000" > tmp.inf
+	rm -f          $@
+	beeb blank_ssd $@
+	beeb title     $@ $*
+	beeb putfile   $@ tmp
+	beeb info      $@
+	rm -f tmp tmp.inf
