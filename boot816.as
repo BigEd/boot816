@@ -14,13 +14,13 @@
         .SETCPU "65816"
         .ORG $8000
 
-        .DEFINE ROMLATCH	$FE30
-        .DEFINE ROMLATCHCOPY	  $F4
-	.DEFINE		CPLD_MAPREG    $800000      ; CPLD MAP and clock control register location
-	.DEFINE		CPLD_RAM_MAPMASK   $10      ; NB bits 0..3 are clock control bits and not to be disturbed
-	.DEFINE		CPLD_ROM_MAPMASK   $20      ; NB bits 0..3 are clock control bits and not to be disturbed
+        .DEFINE ROMLATCH        $FE30
+        .DEFINE ROMLATCHCOPY      $F4
+        .DEFINE         CPLD_MAPREG    $800000      ; CPLD MAP and clock control register location
+        .DEFINE         CPLD_RAM_MAPMASK   $10      ; NB bits 0..3 are clock control bits and not to be disturbed
+        .DEFINE         CPLD_ROM_MAPMASK   $20      ; NB bits 0..3 are clock control bits and not to be disturbed
 
-	.DEFINE OSRDRM  $FFB9 rom number in Y, address in &F6/7, X and Y not preserved
+        .DEFINE OSRDRM  $FFB9 rom number in Y, address in &F6/7, X and Y not preserved
         .DEFINE GSINIT  $FFC2
         .DEFINE GSREAD  $FFC5
         .DEFINE OSASCI  $FFE3
@@ -31,10 +31,10 @@
         .DEFINE OSBYTE  $FFF4
 
         ;; zero page usage:
-	;; &70 - &8F - unused by OS, granted to user by BASIC
+        ;; &70 - &8F - unused by OS, granted to user by BASIC
         ;;           - up to 4 bytes will be used by hipeek and hipoke
         ;; &A8-&AF   - free for 'os commands' - might be overwritten by OSASCI used by prntstr?
-  	;; &B0-&CF   - available to a ROM, but it is supposed to claim and release it
+        ;; &B0-&CF   - available to a ROM, but it is supposed to claim and release it
         ;; &F2, &F3  - official OS text pointer (our command line, also used for gsinit/gsread)
         ;; &F6, &F7  - officially ptr into paged ROM, used here by mem testers and prntstr
 
@@ -52,14 +52,14 @@
         CLI
         .ENDMACRO
 
-	.MACRO MAC_SWAP	AA, BB ;  there's a clever way with XOR...
+        .MACRO MAC_SWAP AA, BB ;  there's a clever way with XOR...
         LDA AA
-	XBA
+        XBA
         LDA BB
-	STA AA
-	XBA
+        STA AA
+        XBA
         STA BB
-	.ENDMACRO
+        .ENDMACRO
 
 
 LANG:   .BYTE $00,$00,$00       ; no language entry
@@ -660,13 +660,13 @@ PRNTSTRSKP:
 REPORTCPU:
         JSR DetectCPUType
         PHA
-        JSR PRNTSTR             	; Print inline text up to NOP
+        JSR PRNTSTR                     ; Print inline text up to NOP
         .BYTE "- Detected "
         NOP
         PLA
         CMP #$00
         BNE DetectionNot6502
-        JSR PRNTSTR             	; Print inline text up to NOP
+        JSR PRNTSTR                     ; Print inline text up to NOP
         .BYTE "original NMOS 6502",$0D
         NOP
         RTS
@@ -679,54 +679,54 @@ DetectionNot6502:
         RTS
 DetectionNotCMOS6502:
         CMP #$02
-	BNE DetectionNotRockwell
-	JSR PRNTSTR              	; Print inline text up to NOP
-	.BYTE "Rockwell R65C02",$0D
-	.BYTE 13
-	NOP
-	RTS
+        BNE DetectionNotRockwell
+        JSR PRNTSTR                     ; Print inline text up to NOP
+        .BYTE "Rockwell R65C02",$0D
+        .BYTE 13
+        NOP
+        RTS
 DetectionNotRockwell:
-	JSR PRNTSTR              	; Print inline text up to NOP
-	.BYTE "65802 or 65816",$0D
-	NOP
-	RTS
+        JSR PRNTSTR                     ; Print inline text up to NOP
+        .BYTE "65802 or 65816",$0D
+        NOP
+        RTS
         ; detect the CPU type
-	; code is from
-	;   comp.sys.apple2
-	;   Re: Enhanced //e with a 6503??!
-	;   David Empson  Sun, 2 Apr 2006
-	;
-	; return in A
-	;    0 6502
-	;    1 Standard 65C02
-	;    2 Rockwell R65C02
-	;    3 65802 or 65816
-	;
+        ; code is from
+        ;   comp.sys.apple2
+        ;   Re: Enhanced //e with a 6503??!
+        ;   David Empson  Sun, 2 Apr 2006
+        ;
+        ; return in A
+        ;    0 6502
+        ;    1 Standard 65C02
+        ;    2 Rockwell R65C02
+        ;    3 65802 or 65816
+        ;
 DetectCPUType:
-	LDY #$00
-	SED
-	LDA #$99
-	CLC
-	ADC #$01
-	CLD
-	BMI DetectionDone  	; 6502 N flag not affected by decimal add
-	LDY #$03
-	LDX #$00
-	.BYTE $BB               ; TYX - 65802 instruction, NOP on all 65C02s
-	BNE DetectionDone  	; Branch only on 65802/816
-	LDX $F6          	; non-destructive use of location $F6 (should maybe disable interrupts first)
-	DEY
-	STY $F6
-	.BYTE $17
+        LDY #$00
+        SED
+        LDA #$99
+        CLC
+        ADC #$01
+        CLD
+        BMI DetectionDone       ; 6502 N flag not affected by decimal add
+        LDY #$03
+        LDX #$00
+        .BYTE $BB               ; TYX - 65802 instruction, NOP on all 65C02s
+        BNE DetectionDone       ; Branch only on 65802/816
+        LDX $F6                 ; non-destructive use of location $F6 (should maybe disable interrupts first)
+        DEY
+        STY $F6
+        .BYTE $17
         .BYTE $EA
- 	; RMB1 $F6       	; Rockwell R65C02 instruction
-	CPY $F6          	; Location $F6 unaffected on other 65C02
-	STX $F6
-	BNE DetectionDone      	; Branch only on Rockwell R65C02 (test CPY)
-	DEY
+        ; RMB1 $F6              ; Rockwell R65C02 instruction
+        CPY $F6                 ; Location $F6 unaffected on other 65C02
+        STX $F6
+        BNE DetectionDone       ; Branch only on Rockwell R65C02 (test CPY)
+        DEY
 DetectionDone:
-	TYA
-	RTS
+        TYA
+        RTS
 
         ;; ----------------------------------------------------------------------
         ;; (*)SetSerialRedirect
@@ -766,7 +766,7 @@ BootFS:
         JSR DetectCPUType
         CMP #$03
         BEQ PrintRomTitle
-	RTS
+        RTS
 
         ;; ----------------------------------------------------------
         ;; SERVICE 3 - BOOT FS
@@ -838,10 +838,10 @@ ROMCOPY:
         ;; OS-ROM-copy: copy 15k and 256bytes from bank0 to himem
         ;; *OSCOPY
         ;; ---------------------------------------------------------
-        .DEFINE         OSCOPY1_SRC	      $C000
+        .DEFINE         OSCOPY1_SRC           $C000
         .DEFINE         OSCOPY1_DST         $EEC000
         .DEFINE         COPY1_LEN             $3C00  ; 15k
-        .DEFINE         OSCOPY2_SRC	      $FF00
+        .DEFINE         OSCOPY2_SRC           $FF00
         .DEFINE         OSCOPY2_DST         $EEFF00
         .DEFINE         COPY2_LEN              $100  ; 256 bytes
 
@@ -866,17 +866,17 @@ OSCOPY:
         .A8
         PLB                     ; restore DBR
         MAC_MODE02 ; also re-enables interrupts
-	RTS
+        RTS
 
         ;; ---------------------------------------------------------
         ;; a fixed copy of 16k of SWROM 15 from bank 0 to FE
         ;; *MEMCOPY  (unimplemented)
-	;; note that variable banks means patching the code
-	;; note that the code must be in RAM anyway to read ROM
-	;;   possible but slower to use OSRDRM to read a byte at a time
-	;;
-	;; we might one day want a generic MEMCOPY with parameters
-	;; perhaps this should be called ROMCOPY
+        ;; note that variable banks means patching the code
+        ;; note that the code must be in RAM anyway to read ROM
+        ;;   possible but slower to use OSRDRM to read a byte at a time
+        ;;
+        ;; we might one day want a generic MEMCOPY with parameters
+        ;; perhaps this should be called ROMCOPY
         ;; ---------------------------------------------------------
         MEMCOPY_HIGH = OSCOPY1_DST ; a safe place for the copy code
 
@@ -892,7 +892,7 @@ COPY8ROMS:
          .A16
          LDX #MEMCOPYCODE
          LDY #(MEMCOPY_HIGH & $FFFF)
-	 LDA #(MEMCOPYCODE_END - MEMCOPYCODE)
+         LDA #(MEMCOPYCODE_END - MEMCOPYCODE)
          PHB                     ; save DBR because block moves change it
          MVN ^MEMCOPY_HIGH, $0
          PLB                     ; restore DBR
@@ -962,24 +962,24 @@ NEXTROM2:
 
         ;; ---------------------------------------------------------
         ;; Code to be copied into RAM so it can copy SWROM
-	;; Has extra labels so it can be patched in various places
-	;; 43 bytes ($2B bytes) approx - can fit in stack
+        ;; Has extra labels so it can be patched in various places
+        ;; 43 bytes ($2B bytes) approx - can fit in stack
         ;; ---------------------------------------------------------
-        .DEFINE         MEMCOPY_SRC	       $8000
-	.DEFINE		MEMCOPY_SOURCE_ROM_DUMMY $FF ; Byte will be patched for each copy
+        .DEFINE         MEMCOPY_SRC            $8000
+        .DEFINE         MEMCOPY_SOURCE_ROM_DUMMY $FF ; Byte will be patched for each copy
         .DEFINE         MEMCOPY_DST          $FF0000 ; Top two bytes will be patched for each copy
         .DEFINE         MEMCOPY_LEN            $4000 ; Always 16K Bytes per ROM
 
 MEMCOPYCODE:
 
-	LDA ROMLATCHCOPY ; take a safe copy of the current ROM
-	PHA
+        LDA ROMLATCHCOPY ; take a safe copy of the current ROM
+        PHA
 
 MEMCOPY_PATCH_ROM:
-	LDA #MEMCOPY_SOURCE_ROM_DUMMY
+        LDA #MEMCOPY_SOURCE_ROM_DUMMY
 
-	STA ROMLATCHCOPY
-	STA ROMLATCH
+        STA ROMLATCHCOPY
+        STA ROMLATCH
         PHB                     ; save DBR because block moves change it
         ;; block copy routine - ought really to re-use this code
         REP #%00110000        ; 16 bit index registers on
@@ -1000,9 +1000,9 @@ MEMCOPY_PATCH_MVN:
         .A8
 
         PLB                     ; restore DBR
-	PLA                     ; re-select the original ROM
-	STA ROMLATCHCOPY
-	STA ROMLATCH
+        PLA                     ; re-select the original ROM
+        STA ROMLATCHCOPY
+        STA ROMLATCH
 
 MEMCOPYCODE_END:
         RTL
@@ -1083,7 +1083,7 @@ HIPOKE:
         ; JMP to the PEEK routine to check the value poked commented out and replaced with RTS
         ; JMP HIPEEK_peek        ;; re-read the value and print it
         RTS
-        
+
 HIPEEKPOKEFAIL3POP:
         PLA
         PLA
@@ -1140,37 +1140,37 @@ HEXDUMP:
         JSR argparse           ;; place a 24-bit address in 70/71/72
         BCS HIPEEKPOKEFAIL
 
-	; the addresses are the wrong way around - I really need indirection
-	MAC_SWAP $70, $73
-	MAC_SWAP $71, $74
-	MAC_SWAP $72, $75
+        ; the addresses are the wrong way around - I really need indirection
+        MAC_SWAP $70, $73
+        MAC_SWAP $71, $74
+        MAC_SWAP $72, $75
 
 HEXDUMP1LINE:
         JSR print24bits
-	LDX #16
+        LDX #16
 HEXDUMPNEXTBYTE:
-	LDA #' '
-	JSR OSWRCH
-	LDA [$70]
+        LDA #' '
+        JSR OSWRCH
+        LDA [$70]
         JSR printhex1byte
-	INC $70
-	BNE HD_SKIP_1
-	INC $71
-	BNE HD_SKIP_1
-	INC $72
+        INC $70
+        BNE HD_SKIP_1
+        INC $71
+        BNE HD_SKIP_1
+        INC $72
 HD_SKIP_1:
-	DEX
-	BNE HEXDUMPNEXTBYTE
+        DEX
+        BNE HEXDUMPNEXTBYTE
         JSR OSNEWL
 
-	LDA $70  ;; check to see if we're done
-	CMP $73
-	LDA $71
-	SBC $74
-	LDA $72
-	SBC $75
-	BCC HEXDUMP1LINE
-	RTS
+        LDA $70  ;; check to see if we're done
+        CMP $73
+        LDA $71
+        SBC $74
+        LDA $72
+        SBC $75
+        BCC HEXDUMP1LINE
+        RTS
 
 print24bits:
         LDA $72
@@ -1186,9 +1186,9 @@ print8bits:
 .ifdef IRQINSTALL_D
         ;; ---------------------------------------------------------
         ;; Install an 816-mode IRQ handler in high memory
-	;;
-	;; tested only in emulation. No test routine in ROM.
-	;;
+        ;;
+        ;; tested only in emulation. No test routine in ROM.
+        ;;
         ;; ---------------------------------------------------------
 
 .define  irqvector816  $FFEE
@@ -1200,59 +1200,59 @@ IRQINSTALL:
         ;; Check HiMem is fitted next before testing it
         JSR DieIfNoHiMem
 
-	SEI
-	LDA # .lobyte(IRQHANDLER)
-	STA $FE0000 + irqvector816
-	LDA # .hibyte(IRQHANDLER)
-	STA $FE0000 + irqvector816 + 1
-	CLI
-	RTS
+        SEI
+        LDA # .lobyte(IRQHANDLER)
+        STA $FE0000 + irqvector816
+        LDA # .hibyte(IRQHANDLER)
+        STA $FE0000 + irqvector816 + 1
+        CLI
+        RTS
 
 
 IRQHANDLER:
-	;; irq handling code derived from http://cerebro.xu.edu/~ryanr/atari/65816.html
-	;; this is called from the 816 irq vector, so only called in 816 mode
-	;; a beeb-hosted 816 must switch to 6502 mode to use the OS handler
-	;; or it could handle it itself
-	;; note that the machine will already have pushed P and done SEI
-        PHD    		; Save DBR and Direct
+        ;; irq handling code derived from http://cerebro.xu.edu/~ryanr/atari/65816.html
+        ;; this is called from the 816 irq vector, so only called in 816 mode
+        ;; a beeb-hosted 816 must switch to 6502 mode to use the OS handler
+        ;; or it could handle it itself
+        ;; note that the machine will already have pushed P and done SEI
+        PHD             ; Save DBR and Direct
         PHB
-        PEA $0000     	; Clear Direct...
-        PLD           	;
-	PHK		; ... and with a single zero byte ...
-        PLB		; ... clear the DBR
-        PHX           	; X&Y saved at present width, because resetting them
-        PHY           	;  to 8 bits would destroy the upper half contents.
-	PHP  		; push 816 P reg for reg width info (I was set as IRQ vector fetched)
+        PEA $0000       ; Clear Direct...
+        PLD             ;
+        PHK             ; ... and with a single zero byte ...
+        PLB             ; ... clear the DBR
+        PHX             ; X&Y saved at present width, because resetting them
+        PHY             ;  to 8 bits would destroy the upper half contents.
+        PHP             ; push 816 P reg for reg width info (I was set as IRQ vector fetched)
 
-	;; push a fake interrupt frame so we can call the 6502 host interrupt service
-	PER IRETURN   	; push return address (then status) for the RTI
-	SEP #%00110000 	; Set 8 bit regs
-	LDA #%00000100  ; we want I set and B clear for the 6502 irq handler
-	PHA           	; saving for sake of 6502 handler and RTI
+        ;; push a fake interrupt frame so we can call the 6502 host interrupt service
+        PER IRETURN     ; push return address (then status) for the RTI
+        SEP #%00110000  ; Set 8 bit regs
+        LDA #%00000100  ; we want I set and B clear for the 6502 irq handler
+        PHA             ; saving for sake of 6502 handler and RTI
 
-	;; everything is safe
-	;; switch to 6502 mode for the host interrupt service routine
-	SEC
-	XCE
-	NOP		; residual doubt about our clock switching?
+        ;; everything is safe
+        ;; switch to 6502 mode for the host interrupt service routine
+        SEC
+        XCE
+        NOP             ; residual doubt about our clock switching?
 
-	;;        now jump to the appropriate interrupt vector, such as...
-	JMP (irqvector02) ; Its RTI will return to IRETURN
+        ;;        now jump to the appropriate interrupt vector, such as...
+        JMP (irqvector02) ; Its RTI will return to IRETURN
         ; done
 
 
 IRETURN:
-	CLC		; beeb special:	return to 816-mode (we're in the 816-mode handler!)
-	XCE
-	PLP 		; recover unmodified 816 status byte - for reg widths
-			;  we know this saved P has SEI
-	                ; we don't worry about N and Z because the next RTI will pull a real P
-	PLY           	;  now restore X&Y at whatever width they were saved at
-        PLX           	;
-        PLB           	; Restore DBR and Direct
+        CLC             ; beeb special: return to 816-mode (we're in the 816-mode handler!)
+        XCE
+        PLP             ; recover unmodified 816 status byte - for reg widths
+                        ;  we know this saved P has SEI
+                        ; we don't worry about N and Z because the next RTI will pull a real P
+        PLY             ;  now restore X&Y at whatever width they were saved at
+        PLX             ;
+        PLB             ; Restore DBR and Direct
         PLD
-        RTI           	; Return to main program (pulling genuine user-mode P then 3 PC bytes)
+        RTI             ; Return to main program (pulling genuine user-mode P then 3 PC bytes)
 
 .endif
 
