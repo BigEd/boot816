@@ -14,11 +14,11 @@
         .SETCPU "65816"
         .ORG $8000
 
-        .DEFINE ROMLATCH        $FE30
-        .DEFINE ROMLATCHCOPY      $F4
-        .DEFINE         CPLD_MAPREG    $800000      ; CPLD MAP and clock control register location
-        .DEFINE         CPLD_RAM_MAPMASK   $10      ; NB bits 0..3 are clock control bits and not to be disturbed
-        .DEFINE         CPLD_ROM_MAPMASK   $20      ; NB bits 0..3 are clock control bits and not to be disturbed
+        .DEFINE ROMLATCH         $FE30
+        .DEFINE ROMLATCHCOPY       $F4
+        .DEFINE CPLD_MAPREG    $800000      ; CPLD MAP and clock control register location
+        .DEFINE CPLD_RAM_MAPMASK   $10      ; NB bits 0..3 are clock control bits and not to be disturbed
+        .DEFINE CPLD_ROM_MAPMASK   $20      ; NB bits 0..3 are clock control bits and not to be disturbed
 
         .DEFINE OSRDRM  $FFB9 rom number in Y, address in &F6/7, X and Y not preserved
         .DEFINE GSINIT  $FFC2
@@ -52,7 +52,7 @@
         CLI
         .ENDMACRO
 
-        .MACRO MAC_SWAP AA, BB ;  there's a clever way with XOR...
+        .MACRO MAC_SWAP AA, BB  ;  there's a clever way with XOR...
         LDA AA
         XBA
         LDA BB
@@ -316,7 +316,7 @@ DieIfNot65816:
         JSR DetectCPUType
         CMP #$03
         BEQ DieReturnsOK
-        PLA          ; discard the return address
+        PLA                     ; discard the return address
         PLA
         LDY #$03
         JMP ReportResult
@@ -326,7 +326,7 @@ DieIfNoHiMem:
         JSR DetectHiMem
         CPY #$00
         BEQ DieReturnsOK
-        PLA                    ; discard our caller's return address
+        PLA                     ; discard our caller's return address
         PLA
         JMP MSG_NOHIMEM
         ; done
@@ -375,7 +375,7 @@ TESTHIMEM:
         NOP
 
         LDA #$55
-        MAC_MODE816  ; will use 16-bit index mode (but the JSL should be fine)
+        MAC_MODE816             ; will use 16-bit index mode (but the JSL should be fine)
         JSL WrDown
         MAC_MODE02
 
@@ -457,14 +457,14 @@ MARCHSTART:
 
         ;;\ RD(0)Wr(1)
 RdWrDown:
-        STA     PZ_BKG0      ; init expected data reg
-        EOR     #$FF         ; invert it
-        XBA                  ; save it in B register
-        LDY     #$00         ; y = 0 is a pass
+        STA     PZ_BKG0         ; init expected data reg
+        EOR     #$FF            ; invert it
+        XBA                     ; save it in B register
+        LDY     #$00            ; y = 0 is a pass
 
-        REP     #%00010000        ; 16 bit index registers on
+        REP     #%00010000      ; 16 bit index registers on
         .I16
-        LDX     #MEMTOP     ;
+        LDX     #MEMTOP         ;
 RdWrDown_top:
         LDA     MEMTESTAREA,X   ; read back data
         XBA                     ; save it and get inverted data in A
@@ -485,13 +485,13 @@ RdWrDown_exit:
 
         ;;/ RD(0)Wr(1)
 RdWrUp:
-        STA     PZ_BKG0      ; init expected data reg
-        EOR     #$FF         ; invert it
-        XBA                  ; save it in B register
-        LDY     #$00         ; y = 0 is a pass
-        REP     #%00010000        ; 16 bit index registers on
+        STA     PZ_BKG0         ; init expected data reg
+        EOR     #$FF            ; invert it
+        XBA                     ; save it in B register
+        LDY     #$00            ; y = 0 is a pass
+        REP     #%00010000      ; 16 bit index registers on
         .I16
-        LDX     #MEMBOT     ;
+        LDX     #MEMBOT         ;
 RdWrUp_top:
         LDA     MEMTESTAREA,X   ; read back data
         XBA                     ; save it  and get inverted bkg from B
@@ -516,8 +516,8 @@ WrDown:
         .I16
         LDX     #MEMTOP
 WrDown_top:
-        STA     MEMTESTAREA,X       ; write inverted data back
-        CPX     #MEMBOT             ; reached membot yet?
+        STA     MEMTESTAREA,X   ; write inverted data back
+        CPX     #MEMBOT         ; reached membot yet?
         BEQ     WrDown_exit
         DEX
         BRA     WrDown_top
@@ -551,7 +551,7 @@ HITESTHIMEM:
         MAC_MODE816  ; switch to Native mode for 16-bit index registers
 
 BlockCopy:
-        REP #%00110000        ; 16 bit index registers on
+        REP #%00110000          ; 16 bit index registers on
         .I16
         .A16
         LDX #MARCHSTART
@@ -560,7 +560,7 @@ BlockCopy:
         PHB                     ; save DBR
         ;; Opcode should be <MVN> <dest> <src>
         MVN ^HIMARCHSTART, ^MARCHSTART
-        PLB                    ; restore DBR
+        PLB                     ; restore DBR
         SEP #%00110000 ; Back to 8b registers
         .I8
         .A8
@@ -633,7 +633,7 @@ PRNTSTR:
         PLA
         STA $F6
         PLA
-        STA $F7                 ;Pop return address to &F6/7
+        STA $F7                 ; Pop return address to &F6/7
         TYA
         PHA
         LDY #$00
@@ -660,33 +660,33 @@ PRNTSTRSKP:
 REPORTCPU:
         JSR DetectCPUType
         PHA
-        JSR PRNTSTR                     ; Print inline text up to NOP
+        JSR PRNTSTR             ; Print inline text up to NOP
         .BYTE "- Detected "
         NOP
         PLA
         CMP #$00
         BNE DetectionNot6502
-        JSR PRNTSTR                     ; Print inline text up to NOP
+        JSR PRNTSTR             ; Print inline text up to NOP
         .BYTE "original NMOS 6502",$0D
         NOP
         RTS
 DetectionNot6502:
         CMP #$01
         BNE DetectionNotCMOS6502
-        JSR PRNTSTR                     ; Print inline text up to NOP
+        JSR PRNTSTR             ; Print inline text up to NOP
         .BYTE "Standard 65C02",$0D
         NOP
         RTS
 DetectionNotCMOS6502:
         CMP #$02
         BNE DetectionNotRockwell
-        JSR PRNTSTR                     ; Print inline text up to NOP
+        JSR PRNTSTR             ; Print inline text up to NOP
         .BYTE "Rockwell R65C02",$0D
         .BYTE 13
         NOP
         RTS
 DetectionNotRockwell:
-        JSR PRNTSTR                     ; Print inline text up to NOP
+        JSR PRNTSTR             ; Print inline text up to NOP
         .BYTE "65802 or 65816",$0D
         NOP
         RTS
@@ -788,8 +788,8 @@ Service3Reset:
         ;; the ROM is initialized on a Master128
         ;; ----------------------------------------------------------
 Service27Reset:
-        PHA                 ;we should not claim this service
-;;        JSR PRNTSTR         ;Print inline text up to NOP
+        PHA                     ; we should not claim this service
+;;        JSR PRNTSTR           ; Print inline text up to NOP
 ;;        .BYTE 13,"Boot816 saw a service 27",13
 ;;        NOP
         JSR BootFS
@@ -846,26 +846,26 @@ ROMCOPY:
         .DEFINE         COPY2_LEN              $100  ; 256 bytes
 
 OSCOPY:
-        MAC_MODE816   ; also sets interrupt mask
+        MAC_MODE816             ; also sets interrupt mask
         PHB                     ; save DBR because block moves change it
-        REP #%00110000        ; 16 bit index registers on
+        REP #%00110000          ; 16 bit index registers on
         .I16
         .A16
         ;; MVN <destbank> <srcbank> with Y as dest addr, X as source addr, A as bytecount-1
 
-        LDX #OSCOPY1_SRC            ;; lower 16 bits of source
-        LDY #(OSCOPY1_DST & $ffff)  ;; lower 16 bits of destination
+        LDX #OSCOPY1_SRC           ; lower 16 bits of source
+        LDY #(OSCOPY1_DST & $ffff) ; lower 16 bits of destination
         LDA #(COPY1_LEN-1)
         MVN ^OSCOPY1_DST, $0
-        LDX #OSCOPY2_SRC            ;; lower 16 bits of source
-        LDY #(OSCOPY2_DST & $ffff)  ;; lower 16 bits of destination
+        LDX #OSCOPY2_SRC           ; lower 16 bits of source
+        LDY #(OSCOPY2_DST & $ffff) ; lower 16 bits of destination
         LDA #(COPY2_LEN-1)
         MVN ^OSCOPY2_DST, $0
         SEP #%00110000 ; Back to 8b registers
         .I8
         .A8
         PLB                     ; restore DBR
-        MAC_MODE02 ; also re-enables interrupts
+        MAC_MODE02              ; also re-enables interrupts
         RTS
 
         ;; ---------------------------------------------------------
@@ -886,20 +886,20 @@ COPY8ROMS:
          ; the master routine is copied to a high bank where the MOS will
          ; land shortly.
          ; using 816 block move
-         MAC_MODE816   ; also sets interrupt mask
-         REP #%00110000        ; 16 bit index registers on
+         MAC_MODE816            ; also sets interrupt mask
+         REP #%00110000         ; 16 bit index registers on
          .I16
          .A16
          LDX #MEMCOPYCODE
          LDY #(MEMCOPY_HIGH & $FFFF)
          LDA #(MEMCOPYCODE_END - MEMCOPYCODE)
-         PHB                     ; save DBR because block moves change it
+         PHB                    ; save DBR because block moves change it
          MVN ^MEMCOPY_HIGH, $0
-         PLB                     ; restore DBR
-         SEP #%00110000 ; Back to 8b registers
+         PLB                    ; restore DBR
+         SEP #%00110000         ; Back to 8b registers
          .I8
          .A8
-         MAC_MODE02 ; also re-enables interrupts
+         MAC_MODE02             ; also re-enables interrupts
 
 ; we need to compute some offsets into the block move code
 ; but we're struggling with ca65's type conversions of expressions
@@ -924,15 +924,15 @@ MEMCOPY_MVN_OFFSET=$16
 NEXTROM1:
          TYA
          STA MEMCOPY_HIGH + MEMCOPY_ROM_OFFSET +1
-         ROR        ;; move ROM index into top bits for destination
+         ROR                    ; move ROM index into top bits for destination
          ROR
          ROR
          AND #$C0
          STA MEMCOPY_HIGH + MEMCOPY_DEST_OFFSET +2
          PHY
-         MAC_MODE816   ; also sets interrupt mask
+         MAC_MODE816            ; also sets interrupt mask
          JSL MEMCOPY_HIGH
-         MAC_MODE02 ; also re-enables interrupts
+         MAC_MODE02             ; also re-enables interrupts
          PLY
          INY
          CPY #8
@@ -945,15 +945,15 @@ NEXTROM1:
 NEXTROM2:
          TYA
          STA MEMCOPY_HIGH + MEMCOPY_ROM_OFFSET +1
-         ROR        ;; move ROM index into top bits for destination
+         ROR                    ; move ROM index into top bits for destination
          ROR
          ROR
          AND #$C0
          STA MEMCOPY_HIGH + MEMCOPY_DEST_OFFSET +2
          PHY
-         MAC_MODE816   ; also sets interrupt mask
+         MAC_MODE816            ; also sets interrupt mask
          JSL MEMCOPY_HIGH
-         MAC_MODE02 ; also re-enables interrupts
+         MAC_MODE02             ; also re-enables interrupts
          PLY
          INY
          CPY #16
@@ -972,7 +972,7 @@ NEXTROM2:
 
 MEMCOPYCODE:
 
-        LDA ROMLATCHCOPY ; take a safe copy of the current ROM
+        LDA ROMLATCHCOPY        ; take a safe copy of the current ROM
         PHA
 
 MEMCOPY_PATCH_ROM:
@@ -982,15 +982,15 @@ MEMCOPY_PATCH_ROM:
         STA ROMLATCH
         PHB                     ; save DBR because block moves change it
         ;; block copy routine - ought really to re-use this code
-        REP #%00110000        ; 16 bit index registers on
+        REP #%00110000          ; 16 bit index registers on
         .I16
         .A16
         ;; MVN <destbank> <srcbank> with Y as dest addr, X as source addr, A as bytecount-1
 
 MEMCOPY_PATCH_SRC:
-        LDX #MEMCOPY_SRC            ;; lower 16 bits of source
+        LDX #MEMCOPY_SRC        ; lower 16 bits of source
 MEMCOPY_PATCH_DEST:
-        LDY #(MEMCOPY_DST & $ffff)  ;; lower 16 bits of destination
+        LDY #(MEMCOPY_DST & $ffff) ; lower 16 bits of destination
 MEMCOPY_PATCH_LEN:
         LDA #(MEMCOPY_LEN-1)
 MEMCOPY_PATCH_MVN:
@@ -1013,14 +1013,14 @@ MEMCOPYCODE_END:
         ;; *HIPEEK FFFFE
         ;; ---------------------------------------------------------
 HIPEEK:
-        TYA                    ;; Y is part of our command-line pointer
+        TYA                     ; Y is part of our command-line pointer
         PHA
         JSR DieIfNot65816
         PLA
         TAY
 
-        LDA #6                 ;; read up to 6 hex digits
-        JSR argparse           ;; place a 24-bit address in 70/71/72
+        LDA #6                  ; read up to 6 hex digits
+        JSR argparse            ; place a 24-bit address in 70/71/72
         BCS HIPEEKPOKEFAIL
 
         ; Comment out debug message which prints address to be PEEKd
@@ -1040,38 +1040,38 @@ HIPEEK_peek:
         ;; grubby in part because the arg parser has a poor interface
         ;; ---------------------------------------------------------
 HIPOKE:
-        TYA                    ;; Y is part of our command-line pointer
+        TYA                     ; Y is part of our command-line pointer
         PHA
         JSR DieIfNot65816
         PLA
         TAY
 
-        LDA #6                 ;; read up to 6 hex digits
-        JSR argparse           ;; place a 24-bit address in 70/71/72
+        LDA #6                  ; read up to 6 hex digits
+        JSR argparse            ; place a 24-bit address in 70/71/72
         BCS HIPEEKPOKEFAIL
 
         ; Debug message printing out POKE address commented out
         ;JSR print24bits
         ;JSR OSNEWL
 
-        LDA $70                ;; save the address - we're about to overwrite
+        LDA $70                 ; save the address - we're about to overwrite
         PHA
         LDA $71
         PHA
         LDA $72
         PHA
 
-        LDA #2                 ;; read a single byte of hex
-        JSR argparse           ;; return a one-byte datum in A8
+        LDA #2                  ; read a single byte of hex
+        JSR argparse            ; return a one-byte datum in A8
         BCS HIPEEKPOKEFAIL3POP
 
         ; Debug message printing out byte to HIPOKE commented out
         ;JSR print8bits
         ;JSR OSNEWL
 
-        LDA $70                ;; save the data byte
+        LDA $70                 ; save the data byte
         TAX
-        PLA                    ;; now recover the 3-byte address we had
+        PLA                     ; now recover the 3-byte address we had
         STA $72
         PLA
         STA $71
@@ -1081,7 +1081,7 @@ HIPOKE:
         ; we're using 24-bit addressing in emulated mode: that's OK
         STA [$70]
         ; JMP to the PEEK routine to check the value poked commented out and replaced with RTS
-        ; JMP HIPEEK_peek        ;; re-read the value and print it
+        ; JMP HIPEEK_peek       ; re-read the value and print it
         RTS
 
 HIPEEKPOKEFAIL3POP:
@@ -1094,9 +1094,9 @@ HIPEEKPOKEFAIL:
         ; done
 
 TURBO:
-        JSR ROMCOPY ; copies sideways ROMs and OS
+        JSR ROMCOPY             ; copies sideways ROMs and OS
         LDA CPLD_MAPREG
-        ORA #$14    ; map ROMs, high speed clock /1 and retain state of shadow/cached video RAM
+        ORA #$14                ; map ROMs, high speed clock /1 and retain state of shadow/cached video RAM
         STA CPLD_MAPREG
         JSR PRNTSTR
         .BYTE "Turbo engaged!", $0D
@@ -1105,7 +1105,7 @@ TURBO:
 
 SHADOW:
         LDA CPLD_MAPREG
-        ORA #$80   ; enable shadow RAM (video memory is hidden, HIMEM can be 8000)
+        ORA #$80                ; enable shadow RAM (video memory is hidden, HIMEM can be 8000)
         STA CPLD_MAPREG
         JSR PRNTSTR
         .BYTE "Shadow RAM enabled: HIMEM can be 8000", $0D
@@ -1119,25 +1119,25 @@ SHADOW:
         ;; A is the starting address, B is the end address
         ;; ---------------------------------------------------------
 HEXDUMP:
-        TYA                    ;; Y is part of our command-line pointer
+        TYA                     ; Y is part of our command-line pointer
         PHA
         JSR DieIfNot65816
         PLA
         TAY
 
-        LDA #6                 ;; read up to 6 hex digits
-        JSR argparse           ;; place a 24-bit address in 70/71/72
+        LDA #6                  ; read up to 6 hex digits
+        JSR argparse            ; place a 24-bit address in 70/71/72
         BCS HIPEEKPOKEFAIL
 
-        LDA $70                ;; save the address in 73/74/75
+        LDA $70                 ; save the address in 73/74/75
         STA $73
         LDA $71
         STA $74
         LDA $72
         STA $75
 
-        LDA #6                 ;; read up to 6 hex digits
-        JSR argparse           ;; place a 24-bit address in 70/71/72
+        LDA #6                  ; read up to 6 hex digits
+        JSR argparse            ; place a 24-bit address in 70/71/72
         BCS HIPEEKPOKEFAIL
 
         ; the addresses are the wrong way around - I really need indirection
@@ -1163,7 +1163,7 @@ HD_SKIP_1:
         BNE HEXDUMPNEXTBYTE
         JSR OSNEWL
 
-        LDA $70  ;; check to see if we're done
+        LDA $70                 ; check to see if we're done
         CMP $73
         LDA $71
         SBC $74
@@ -1215,27 +1215,27 @@ IRQHANDLER:
         ;; a beeb-hosted 816 must switch to 6502 mode to use the OS handler
         ;; or it could handle it itself
         ;; note that the machine will already have pushed P and done SEI
-        PHD             ; Save DBR and Direct
+        PHD                     ; Save DBR and Direct
         PHB
-        PEA $0000       ; Clear Direct...
-        PLD             ;
-        PHK             ; ... and with a single zero byte ...
-        PLB             ; ... clear the DBR
-        PHX             ; X&Y saved at present width, because resetting them
-        PHY             ;  to 8 bits would destroy the upper half contents.
-        PHP             ; push 816 P reg for reg width info (I was set as IRQ vector fetched)
+        PEA $0000               ; Clear Direct...
+        PLD                     ;
+        PHK                     ; ... and with a single zero byte ...
+        PLB                     ; ... clear the DBR
+        PHX                     ; X&Y saved at present width, because resetting them
+        PHY                     ;  to 8 bits would destroy the upper half contents.
+        PHP                     ; push 816 P reg for reg width info (I was set as IRQ vector fetched)
 
         ;; push a fake interrupt frame so we can call the 6502 host interrupt service
-        PER IRETURN     ; push return address (then status) for the RTI
-        SEP #%00110000  ; Set 8 bit regs
-        LDA #%00000100  ; we want I set and B clear for the 6502 irq handler
-        PHA             ; saving for sake of 6502 handler and RTI
+        PER IRETURN             ; push return address (then status) for the RTI
+        SEP #%00110000          ; Set 8 bit regs
+        LDA #%00000100          ; we want I set and B clear for the 6502 irq handler
+        PHA                     ; saving for sake of 6502 handler and RTI
 
         ;; everything is safe
         ;; switch to 6502 mode for the host interrupt service routine
         SEC
         XCE
-        NOP             ; residual doubt about our clock switching?
+        NOP                     ; residual doubt about our clock switching?
 
         ;;        now jump to the appropriate interrupt vector, such as...
         JMP (irqvector02) ; Its RTI will return to IRETURN
@@ -1243,16 +1243,16 @@ IRQHANDLER:
 
 
 IRETURN:
-        CLC             ; beeb special: return to 816-mode (we're in the 816-mode handler!)
+        CLC                     ; beeb special: return to 816-mode (we're in the 816-mode handler!)
         XCE
-        PLP             ; recover unmodified 816 status byte - for reg widths
-                        ;  we know this saved P has SEI
-                        ; we don't worry about N and Z because the next RTI will pull a real P
-        PLY             ;  now restore X&Y at whatever width they were saved at
-        PLX             ;
-        PLB             ; Restore DBR and Direct
+        PLP                     ; recover unmodified 816 status byte - for reg widths
+                                ;  we know this saved P has SEI
+                                ; we don't worry about N and Z because the next RTI will pull a real P
+        PLY                     ;  now restore X&Y at whatever width they were saved at
+        PLX                     ;
+        PLB                     ; Restore DBR and Direct
         PLD
-        RTI             ; Return to main program (pulling genuine user-mode P then 3 PC bytes)
+        RTI                     ; Return to main program (pulling genuine user-mode P then 3 PC bytes)
 
 .endif
 
@@ -1280,89 +1280,89 @@ MSG_NOHIMEM:
         ;; fixme: reverses the bytes in order to store lsb first: better to shift into a result
 
 argparse:
-        STA $77       ; save the parameter
-        CLC           ; terminate with space, return or "
-        JSR GSINIT    ; initialise argument with Gsinit
+        STA $77                 ; save the parameter
+        CLC                     ; terminate with space, return or "
+        JSR GSINIT              ; initialise argument with Gsinit
         TSX
-        STX $76       ; save the stack pointer so we can error out
-        LDX #0        ; initial result = $000000
-        STX $70       ; least sig. byte of result
-        STX $71       ;
-        STX $72       ; most sig. byte of result
-        DEX           ; X will count number of nybbles - 1
+        STX $76                 ; save the stack pointer so we can error out
+        LDX #0                  ; initial result = $000000
+        STX $70                 ; least sig. byte of result
+        STX $71                 ;
+        STX $72                 ; most sig. byte of result
+        DEX                     ; X will count number of nybbles - 1
 argloop:
-        JSR GSREAD    ; read character from argument with Gsread
-        BCS argend    ; branch if termination character
-        JSR argconv   ; convert nybble into binary
-        PHA           ; push each nibble on stack
-        INX           ; X is a running count of nibbles
-        BPL argloop   ; branch for next character (limit of 127 chars!)
+        JSR GSREAD              ; read character from argument with Gsread
+        BCS argend              ; branch if termination character
+        JSR argconv             ; convert nybble into binary
+        PHA                     ; push each nibble on stack
+        INX                     ; X is a running count of nibbles
+        BPL argloop             ; branch for next character (limit of 127 chars!)
 argend:
-        CPX $77       ; more than expected number of characters?
-        BCS argerr    ; reject if too many
+        CPX $77                 ; more than expected number of characters?
+        BCS argerr              ; reject if too many
 
-        PLA           ; pull a low nibble
-        STA $70       ; store in appropriate place
+        PLA                     ; pull a low nibble
+        STA $70                 ; store in appropriate place
 
-        DEX           ;
-        BMI argdone   ; branch if we're done
+        DEX                     ;
+        BMI argdone             ; branch if we're done
 
-        PLA           ; pull a high nibble
-        ASL A         ; shift
-        ASL A         ; left
-        ASL A         ; four
-        ASL A         ; bits
-        ORA $70       ; OR into appropriate byte
-        STA $70       ; and store
+        PLA                     ; pull a high nibble
+        ASL A                   ; shift
+        ASL A                   ; left
+        ASL A                   ; four
+        ASL A                   ; bits
+        ORA $70                 ; OR into appropriate byte
+        STA $70                 ; and store
 
-        DEX           ;
-        BMI argdone   ; branch if we're done
+        DEX                     ;
+        BMI argdone             ; branch if we're done
 
-        PLA           ; pull a low nibble
-        STA $71       ; store in appropriate place
+        PLA                     ; pull a low nibble
+        STA $71                 ; store in appropriate place
 
-        DEX           ;
-        BMI argdone   ; branch if we're done
+        DEX                     ;
+        BMI argdone             ; branch if we're done
 
-        PLA           ; pull a high nibble
-        ASL A         ; shift
-        ASL A         ; left
-        ASL A         ; four
-        ASL A         ; bits
-        ORA $71       ; OR into appropriate byte
-        STA $71       ; and store
+        PLA                     ; pull a high nibble
+        ASL A                   ; shift
+        ASL A                   ; left
+        ASL A                   ; four
+        ASL A                   ; bits
+        ORA $71                 ; OR into appropriate byte
+        STA $71                 ; and store
 
-        DEX           ;
-        BMI argdone   ; branch if we're done
+        DEX                     ;
+        BMI argdone             ; branch if we're done
 
-        PLA           ; pull a low nibble
-        STA $72       ; store in appropriate place
+        PLA                     ; pull a low nibble
+        STA $72                 ; store in appropriate place
 
-        DEX           ;
-        BMI argdone   ; branch if we're done
+        DEX                     ;
+        BMI argdone             ; branch if we're done
 
-        PLA           ; pull a high nibble
-        ASL A         ; shift
-        ASL A         ; left
-        ASL A         ; four
-        ASL A         ; bits
-        ORA $72       ; OR into appropriate byte
-        STA $72       ; and store
+        PLA                     ; pull a high nibble
+        ASL A                   ; shift
+        ASL A                   ; left
+        ASL A                   ; four
+        ASL A                   ; bits
+        ORA $72                 ; OR into appropriate byte
+        STA $72                 ; and store
 
 argdone:
-        CLC           ; indicate success
+        CLC                     ; indicate success
         RTS
 
 argconv:
-        CMP #$3A      ; ASC("9")+1
+        CMP #$3A                ; ASC("9")+1
         BCS argletters
-        CMP #$30      ; ASC("0")
+        CMP #$30                ; ASC("0")
         BMI argerr
         AND #$F
         CLC
         RTS
 argletters:
-        AND #$DF      ; downcase the letters for convenience
+        AND #$DF                ; downcase the letters for convenience
         SBC #$37
         CMP #$A
         BMI argerr
@@ -1371,9 +1371,9 @@ argletters:
         RTS
 
 argerr:
-        LDX $76       ; recover the stack pointer
+        LDX $76                 ; recover the stack pointer
         TXS
-        SEC           ; indicate failure to caller
+        SEC                     ; indicate failure to caller
         RTS
 
         ;; other cribs for handling hex found in os1.2 disassembly:
@@ -1386,23 +1386,23 @@ argerr:
         ;; copied from bbc os1.20
 
 printhex1byte:
-        PHA         ;save A on stack
-        LSR         ;/16 to put high nybble in lo
-        LSR         ;
-        LSR         ;
-        LSR         ;
-        JSR printhex1nibble  ; print the high nibble first
-        PLA         ;get back A
+        PHA                     ; save A on stack
+        LSR                     ; /16 to put high nybble in lo
+        LSR                     ;
+        LSR                     ;
+        LSR                     ;
+        JSR printhex1nibble     ; print the high nibble first
+        PLA                     ; get back A
 
 printhex1nibble:
-        CLC         ;clear carry flag
-        AND #$0F    ;clear high nybble
-        ADC #$30    ;Add &30 to convert 0-9 to ASCII A-F to : ; < = > ?
-        CMP #$3A    ;if A< ASC(':')
-        BCC printhex1char
-        ADC #$06    ;else add 7 to convert : ; < = > ? to A B C D E F
+        CLC                     ; clear carry flag
+        AND #$0F                ; clear high nybble
+        ADC #$30                ; Add &30 to convert 0-9 to ASCII A-F to : ; < = > ?
+        CMP #$3A                ; if A< ASC(':')
+        BCC printhex1char       ;
+        ADC #$06                ; else add 7 to convert : ; < = > ? to A B C D E F
 printhex1char:
-        JMP OSWRCH  ;print character and return
+        JMP OSWRCH              ; print character and return
         ; done
 
 .ifndef TOPLEVEL
