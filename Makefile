@@ -1,7 +1,11 @@
 
-
 BASE ?= 0x8000
 SRECORD_D ?=0
+
+# Targets:
+# 0 = Beeb/Master
+# 1 = Elk
+TARGET_D ?= 0
 
 SHELL=/bin/tcsh -f
 
@@ -11,7 +15,7 @@ clean:
 	rm -f *.o *.lst *.srec *.bin
 
 %.o : %.as
-	ca65 -l $<.log $< -D BASE=$(BASE) -D SRECORD_D=${SRECORD_D}
+	ca65 -l $<.log $< -D BASE=$(BASE) -D SRECORD_D=${SRECORD_D} -D TARGET_D=$(TARGET_D)
 
 %.bin: %.o
 	cl65 $< --target none --start-addr $(BASE) -o $@

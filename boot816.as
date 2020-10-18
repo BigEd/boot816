@@ -14,7 +14,20 @@
         .SETCPU "65816"
         .ORG $8000
 
+        .DEFINE TARGET_BEEB 0
+        .DEFINE TARGET_ELK  1
+
+.IFNDEF TARGET_D
+        .DEFINE TARGET_D = TARGET_BEEB
+.ENDIF
+
+.IF (TARGET_D = TARGET_ELK)
+        .DEFINE ROMLATCH         $FE05
+        .DEFINE ELK_BASIC_SLOT     $0C
+.ELSE
         .DEFINE ROMLATCH         $FE30
+.ENDIF
+
         .DEFINE ROMLATCHCOPY       $F4
         .DEFINE CPLD_MAPREG    $800000      ; CPLD MAP and clock control register location
         .DEFINE CPLD_RAM_MAPMASK   $10      ; NB bits 0..3 are clock control bits and not to be disturbed
@@ -903,9 +916,16 @@ COPY8ROMS:
 
 ; we need to compute some offsets into the block move code
 ; but we're struggling with ca65's type conversions of expressions
+
+.IF (TARGET_D = TARGET_ELK)
+MEMCOPY_ROM_OFFSET=$0A
+MEMCOPY_DEST_OFFSET=$17
+MEMCOPY_MVN_OFFSET=$1D
+.ELSE
 MEMCOPY_ROM_OFFSET=$3
 MEMCOPY_DEST_OFFSET=$10
 MEMCOPY_MVN_OFFSET=$16
+.ENDIF
 
 ; Uncomment these to recompute the numbers in the assignments above
 ; LDA # MEMCOPY_PATCH_ROM - MEMCOPYCODE
@@ -975,6 +995,11 @@ MEMCOPYCODE:
         LDA ROMLATCHCOPY        ; take a safe copy of the current ROM
         PHA
 
+.IF (TARGET_D = TARGET_ELK)
+        LDA #ELK_BASIC_SLOT     ; Select Basic before possibly selecting lower ROMs
+        STA ROMLATCHCOPY
+        STA ROMLATCH
+.ENDIF
 MEMCOPY_PATCH_ROM:
         LDA #MEMCOPY_SOURCE_ROM_DUMMY
 
@@ -1000,6 +1025,11 @@ MEMCOPY_PATCH_MVN:
         .A8
 
         PLB                     ; restore DBR
+.IF (TARGET_D = TARGET_ELK)
+        LDA #ELK_BASIC_SLOT     ; Select Basic before possibly selecting lower ROMs
+        STA ROMLATCHCOPY
+        STA ROMLATCH
+.ENDIF
         PLA                     ; re-select the original ROM
         STA ROMLATCHCOPY
         STA ROMLATCH
