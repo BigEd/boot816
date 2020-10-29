@@ -14,8 +14,9 @@
         .SETCPU "65816"
         .ORG $8000
 
-        .DEFINE TARGET_BEEB 0
-        .DEFINE TARGET_ELK  1
+        .DEFINE TARGET_BEEB    0
+        .DEFINE TARGET_ELK     1
+        .DEFINE TARGET_MASTER  2
 
 .IFNDEF TARGET_D
         .DEFINE TARGET_D = TARGET_BEEB
@@ -26,6 +27,11 @@
         .DEFINE ELK_BASIC_SLOT     $0C
 .ELSE
         .DEFINE ROMLATCH         $FE30
+.ENDIF
+
+.IF (TARGET_D = TARGET_MASTER)
+        .DEFINE ACCCON           $FE34
+        .DEFINE ACC_Y_MASK         $08
 .ENDIF
 
         .DEFINE ROMLATCHCOPY       $F4
@@ -74,14 +80,21 @@
         STA BB
         .ENDMACRO
 
-
 LANG:   .BYTE $00,$00,$00       ; no language entry
 SERV:   JMP CHECK               ; service entry
 TYPE:   .BYTE $82               ; ROM type=Serv+6502
 OFST:   .BYTE COPYRT-LANG
 VERNO:  .BYTE $10
-TITLE:  .BYTE "BEEB816 support ROM",$0D
-        .BYTE $00
+TITLE:  .BYTE "BEEB816 support ROM"
+
+.IF (TARGET_D = TARGET_ELK)     ; make it obvious if the wrong ROM is loaded
+        .BYTE " (Elk)"
+.ELSEIF (TARGET_D = TARGET_MASTER)
+        .BYTE " (Master)"
+.ELSE
+        .BYTE " (Beeb)"
+.ENDIF
+        .BYTE $0D, $00
 TITLE2: .BYTE "2008-20"
 COPYRT: .BYTE $00
         .BYTE "(C) Revaldinho & BigEd",$0D
@@ -859,6 +872,12 @@ ROMCOPY:
         .DEFINE         COPY2_LEN              $100  ; 256 bytes
 
 OSCOPY:
+.IF (TARGET_D = TARGET_MASTER)
+        LDA ACCCON              ; read the access control register
+        PHA                     ; save original value
+        AND #($ff-ACC_Y_MASK)   ; page OS into 0xC000-0xDFFF
+        STA ACCCON              ; write back to the access control register
+.ENDIF
         MAC_MODE816             ; also sets interrupt mask
         PHB                     ; save DBR because block moves change it
         REP #%00110000          ; 16 bit index registers on
@@ -879,6 +898,10 @@ OSCOPY:
         .A8
         PLB                     ; restore DBR
         MAC_MODE02              ; also re-enables interrupts
+.IF (TARGET_D = TARGET_MASTER)
+        PLA                     ; restore original value of access control register
+        STA ACCCON
+.ENDIF
         RTS
 
         ;; ---------------------------------------------------------
