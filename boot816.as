@@ -839,10 +839,10 @@ ROMCOPY:
         ;; *OSCOPY
         ;; ---------------------------------------------------------
         .DEFINE         OSCOPY1_SRC	      $C000
-        .DEFINE         OSCOPY1_DST         $EEC000
+        .DEFINE         OSCOPY1_DST         $FF8000
         .DEFINE         COPY1_LEN             $3C00  ; 15k
         .DEFINE         OSCOPY2_SRC	      $FF00
-        .DEFINE         OSCOPY2_DST         $EEFF00
+        .DEFINE         OSCOPY2_DST         $FFBF00
         .DEFINE         COPY2_LEN              $100  ; 256 bytes
 
 OSCOPY:
@@ -917,8 +917,8 @@ MEMCOPY_MVN_OFFSET=$16
 .ASSERT MEMCOPY_MVN_OFFSET = MEMCOPY_PATCH_MVN - MEMCOPYCODE, error, "precomputed difference fail"
 
          ; the block move code now safely in high memory
-         ; copy the 4 RAMish ROMs, 4 to 7, to bank EC
-         LDA #$EC
+         ; copy the 4 RAMish ROMs, 4 to 7, to bank FD
+         LDA #$FD
          STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
          LDY #4
 NEXTROM1:
@@ -938,8 +938,8 @@ NEXTROM1:
          CPY #8
          BNE NEXTROM1
 
-         ; copy the top 4 ROMs, 12 to 15, to bank ED
-         LDA #$ED
+         ; copy the top 4 ROMs, 12 to 15, to bank FE
+         LDA #$FE
          STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
          LDY #12
 NEXTROM2:
