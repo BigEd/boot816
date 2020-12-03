@@ -1246,6 +1246,7 @@ print8bits:
 
 .define  irqvector816  $FFEE
 .define  irqvector02   $FFFE
+.define  irqaddress    $0A80
 
 IRQINSTALL:
         JSR DieIfNot65816
@@ -1253,11 +1254,28 @@ IRQINSTALL:
         ;; Check HiMem is fitted next before testing it
         JSR DieIfNoHiMem
 
+        ;; Disable interrupts
         SEI
-        LDA # .lobyte(IRQHANDLER)
-        STA $FE0000 + irqvector816
-        LDA # .hibyte(IRQHANDLER)
-        STA $FE0000 + irqvector816 + 1
+
+        ;; Copy the IRQ handler to a "spare" page in bank 0
+        LDX #(IRQHANDLEREND - IRQHANDLER)
+irq_install_loop:
+        LDA IRQHANDLER-1, X
+        STA irqaddress-1, X
+        DEX
+        BNE irq_install_loop
+
+        ;; Update the IRQ vector in high memory
+        LDA # .lobyte(irqaddress)
+        STA $FF0000 + irqvector816
+        LDA # .hibyte(irqaddress)
+        STA $FF0000 + irqvector816 + 1
+
+        ;; Enter native mode
+        CLC
+        XCE
+
+        ;; Re-enable interrupts and stand back
         CLI
         RTS
 
@@ -1270,18 +1288,20 @@ IRQHANDLER:
         ;; note that the machine will already have pushed P and done SEI
         PHD                     ; Save DBR and Direct
         PHB
-        PEA $0000               ; Clear Direct...
+        PHK                     ; Clear Direct...
+        PHK                     ;
         PLD                     ;
         PHK                     ; ... and with a single zero byte ...
         PLB                     ; ... clear the DBR
         PHX                     ; X&Y saved at present width, because resetting them
         PHY                     ;  to 8 bits would destroy the upper half contents.
         PHP                     ; push 816 P reg for reg width info (I was set as IRQ vector fetched)
-
+        REP #%00110000          ; Set 16 bit regs
+        PHA                     ; Save A as 16-bit to make sure upper 8 bits preserved
         ;; push a fake interrupt frame so we can call the 6502 host interrupt service
         PER IRETURN             ; push return address (then status) for the RTI
         SEP #%00110000          ; Set 8 bit regs
-        LDA #%00000100          ; we want I set and B clear for the 6502 irq handler
+        LDA #%00100100          ; we want I set and B clear for the 6502 irq handler (also set the unused bit)
         PHA                     ; saving for sake of 6502 handler and RTI
 
         ;; everything is safe
@@ -1298,6 +1318,8 @@ IRQHANDLER:
 IRETURN:
         CLC                     ; beeb special: return to 816-mode (we're in the 816-mode handler!)
         XCE
+        REP #%00110000          ; Set 16 bit regs
+        PLA                     ; Restore A (and B)
         PLP                     ; recover unmodified 816 status byte - for reg widths
                                 ;  we know this saved P has SEI
                                 ; we don't worry about N and Z because the next RTI will pull a real P
@@ -1306,6 +1328,8 @@ IRETURN:
         PLB                     ; Restore DBR and Direct
         PLD
         RTI                     ; Return to main program (pulling genuine user-mode P then 3 PC bytes)
+
+IRQHANDLEREND:
 
 .endif
 
