@@ -323,13 +323,13 @@ DetectHiMem:
         LDA #$AA                ; Store checkerboard to aliased location
         STA $F6
         LDA #$55
-        STA $FF00F6             ; Store inverted checkerboard to himem
+        STA $F800F6             ; Store inverted checkerboard to himem
         LDA $F6                 ; retrieve checkerboard from lo mem
         CMP #$AA                ; compare with expected value
         BEQ DETNXT1             ; ..skip fail code if it's ok
         LDY #02                 ; return fail code 2 : aliassing
         RTS
-DETNXT1: LDA $FF00F6            ; retrieve inverted checkerboard from hi mem
+DETNXT1: LDA $F800F6            ; retrieve inverted checkerboard from hi mem
         CMP #$55                ; compare with expected value
         BEQ DETNXT2             ; ..skip fail code it it's ok
         LDY #01                 ; return fail code 1 : mismatch
@@ -381,10 +381,10 @@ DieIfNoHiMem:
 TESTHIMEM:
         .DEFINE         MEMTOP          $FFFF
         .DEFINE         MEMBOT          $0000
-        .DEFINE         MEMTESTAREA     $FF0000
+        .DEFINE         MEMTESTAREA     $F80000
         .DEFINE         PZ_BKG0         $F6
         .DEFINE         PZ_BKG1         PZ_BKG0 + 1
-        .DEFINE         HIMARCHSTART    $FE5000
+        .DEFINE         HIMARCHSTART    $FFC000
         .DEFINE         HI_WrDown       HIMARCHSTART + WrDown - MARCHSTART
         .DEFINE         HI_RdWrUp       HIMARCHSTART + RdWrUp - MARCHSTART
         .DEFINE         HI_RdWrDown     HIMARCHSTART + RdWrDown - MARCHSTART
