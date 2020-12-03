@@ -14,8 +14,9 @@
         .SETCPU "65816"
         .ORG $8000
 
-        .DEFINE TARGET_BEEB 0
-        .DEFINE TARGET_ELK  1
+        .DEFINE TARGET_BEEB    0
+        .DEFINE TARGET_ELK     1
+        .DEFINE TARGET_MASTER  2
 
 .IFNDEF TARGET_D
         .DEFINE TARGET_D = TARGET_BEEB
@@ -26,6 +27,11 @@
         .DEFINE ELK_BASIC_SLOT     $0C
 .ELSE
         .DEFINE ROMLATCH         $FE30
+.ENDIF
+
+.IF (TARGET_D = TARGET_MASTER)
+        .DEFINE ACCCON           $FE34
+        .DEFINE ACC_Y_MASK         $08
 .ENDIF
 
         .DEFINE ROMLATCHCOPY       $F4
@@ -74,14 +80,21 @@
         STA BB
         .ENDMACRO
 
-
 LANG:   .BYTE $00,$00,$00       ; no language entry
 SERV:   JMP CHECK               ; service entry
 TYPE:   .BYTE $82               ; ROM type=Serv+6502
 OFST:   .BYTE COPYRT-LANG
 VERNO:  .BYTE $10
-TITLE:  .BYTE "BEEB816 support ROM",$0D
-        .BYTE $00
+TITLE:  .BYTE "BEEB816 support ROM"
+
+.IF (TARGET_D = TARGET_ELK)     ; make it obvious if the wrong ROM is loaded
+        .BYTE " (Elk)"
+.ELSEIF (TARGET_D = TARGET_MASTER)
+        .BYTE " (Master)"
+.ELSE
+        .BYTE " (Beeb)"
+.ENDIF
+        .BYTE $0D, $00
 TITLE2: .BYTE "2008-20"
 COPYRT: .BYTE $00
         .BYTE "(C) Revaldinho & BigEd",$0D
@@ -310,13 +323,13 @@ DetectHiMem:
         LDA #$AA                ; Store checkerboard to aliased location
         STA $F6
         LDA #$55
-        STA $FF00F6             ; Store inverted checkerboard to himem
+        STA $F800F6             ; Store inverted checkerboard to himem
         LDA $F6                 ; retrieve checkerboard from lo mem
         CMP #$AA                ; compare with expected value
         BEQ DETNXT1             ; ..skip fail code if it's ok
         LDY #02                 ; return fail code 2 : aliassing
         RTS
-DETNXT1: LDA $FF00F6            ; retrieve inverted checkerboard from hi mem
+DETNXT1: LDA $F800F6            ; retrieve inverted checkerboard from hi mem
         CMP #$55                ; compare with expected value
         BEQ DETNXT2             ; ..skip fail code it it's ok
         LDY #01                 ; return fail code 1 : mismatch
@@ -368,10 +381,10 @@ DieIfNoHiMem:
 TESTHIMEM:
         .DEFINE         MEMTOP          $FFFF
         .DEFINE         MEMBOT          $0000
-        .DEFINE         MEMTESTAREA     $FF0000
+        .DEFINE         MEMTESTAREA     $F80000
         .DEFINE         PZ_BKG0         $F6
         .DEFINE         PZ_BKG1         PZ_BKG0 + 1
-        .DEFINE         HIMARCHSTART    $FE5000
+        .DEFINE         HIMARCHSTART    $FFC000
         .DEFINE         HI_WrDown       HIMARCHSTART + WrDown - MARCHSTART
         .DEFINE         HI_RdWrUp       HIMARCHSTART + RdWrUp - MARCHSTART
         .DEFINE         HI_RdWrDown     HIMARCHSTART + RdWrDown - MARCHSTART
@@ -859,6 +872,12 @@ ROMCOPY:
         .DEFINE         COPY2_LEN              $100  ; 256 bytes
 
 OSCOPY:
+.IF (TARGET_D = TARGET_MASTER)
+        LDA ACCCON              ; read the access control register
+        PHA                     ; save original value
+        AND #($ff-ACC_Y_MASK)   ; page OS into 0xC000-0xDFFF
+        STA ACCCON              ; write back to the access control register
+.ENDIF
         MAC_MODE816             ; also sets interrupt mask
         PHB                     ; save DBR because block moves change it
         REP #%00110000          ; 16 bit index registers on
@@ -879,6 +898,10 @@ OSCOPY:
         .A8
         PLB                     ; restore DBR
         MAC_MODE02              ; also re-enables interrupts
+.IF (TARGET_D = TARGET_MASTER)
+        PLA                     ; restore original value of access control register
+        STA ACCCON
+.ENDIF
         RTS
 
         ;; ---------------------------------------------------------
@@ -1223,6 +1246,7 @@ print8bits:
 
 .define  irqvector816  $FFEE
 .define  irqvector02   $FFFE
+.define  irqaddress    $0A80
 
 IRQINSTALL:
         JSR DieIfNot65816
@@ -1230,11 +1254,28 @@ IRQINSTALL:
         ;; Check HiMem is fitted next before testing it
         JSR DieIfNoHiMem
 
+        ;; Disable interrupts
         SEI
-        LDA # .lobyte(IRQHANDLER)
-        STA $FE0000 + irqvector816
-        LDA # .hibyte(IRQHANDLER)
-        STA $FE0000 + irqvector816 + 1
+
+        ;; Copy the IRQ handler to a "spare" page in bank 0
+        LDX #(IRQHANDLEREND - IRQHANDLER)
+irq_install_loop:
+        LDA IRQHANDLER-1, X
+        STA irqaddress-1, X
+        DEX
+        BNE irq_install_loop
+
+        ;; Update the IRQ vector in high memory
+        LDA # .lobyte(irqaddress)
+        STA $FF0000 + irqvector816
+        LDA # .hibyte(irqaddress)
+        STA $FF0000 + irqvector816 + 1
+
+        ;; Enter native mode
+        CLC
+        XCE
+
+        ;; Re-enable interrupts and stand back
         CLI
         RTS
 
@@ -1247,18 +1288,20 @@ IRQHANDLER:
         ;; note that the machine will already have pushed P and done SEI
         PHD                     ; Save DBR and Direct
         PHB
-        PEA $0000               ; Clear Direct...
+        PHK                     ; Clear Direct...
+        PHK                     ;
         PLD                     ;
         PHK                     ; ... and with a single zero byte ...
         PLB                     ; ... clear the DBR
         PHX                     ; X&Y saved at present width, because resetting them
         PHY                     ;  to 8 bits would destroy the upper half contents.
         PHP                     ; push 816 P reg for reg width info (I was set as IRQ vector fetched)
-
+        REP #%00110000          ; Set 16 bit regs
+        PHA                     ; Save A as 16-bit to make sure upper 8 bits preserved
         ;; push a fake interrupt frame so we can call the 6502 host interrupt service
         PER IRETURN             ; push return address (then status) for the RTI
         SEP #%00110000          ; Set 8 bit regs
-        LDA #%00000100          ; we want I set and B clear for the 6502 irq handler
+        LDA #%00100100          ; we want I set and B clear for the 6502 irq handler (also set the unused bit)
         PHA                     ; saving for sake of 6502 handler and RTI
 
         ;; everything is safe
@@ -1275,6 +1318,8 @@ IRQHANDLER:
 IRETURN:
         CLC                     ; beeb special: return to 816-mode (we're in the 816-mode handler!)
         XCE
+        REP #%00110000          ; Set 16 bit regs
+        PLA                     ; Restore A (and B)
         PLP                     ; recover unmodified 816 status byte - for reg widths
                                 ;  we know this saved P has SEI
                                 ; we don't worry about N and Z because the next RTI will pull a real P
@@ -1283,6 +1328,8 @@ IRETURN:
         PLB                     ; Restore DBR and Direct
         PLD
         RTI                     ; Return to main program (pulling genuine user-mode P then 3 PC bytes)
+
+IRQHANDLEREND:
 
 .endif
 
