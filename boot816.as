@@ -584,8 +584,8 @@ BlockCopy:
         LDY #(HIMARCHSTART & $0FFFF)
         LDA #CODESIZE
         PHB                     ; save DBR
-        ;; Opcode should be <MVN> <dest> <src>
-        MVN ^HIMARCHSTART, ^MARCHSTART
+        ;; Opcode should be <MVN> <src><dest>
+        MVN MARCHSTART, HIMARCHSTART
         PLB                     ; restore DBR
         SEP #%00110000 ; Back to 8b registers
         .I8
@@ -883,16 +883,16 @@ OSCOPY:
         REP #%00110000          ; 16 bit index registers on
         .I16
         .A16
-        ;; MVN <destbank> <srcbank> with Y as dest addr, X as source addr, A as bytecount-1
+        ;; MVN <srcbank>><destbank> with Y as dest addr, X as source addr, A as bytecount-1
 
         LDX #OSCOPY1_SRC           ; lower 16 bits of source
         LDY #(OSCOPY1_DST & $ffff) ; lower 16 bits of destination
         LDA #(COPY1_LEN-1)
-        MVN ^OSCOPY1_DST, $0
+        MVN $0, OSCOPY1_DST
         LDX #OSCOPY2_SRC           ; lower 16 bits of source
         LDY #(OSCOPY2_DST & $ffff) ; lower 16 bits of destination
         LDA #(COPY2_LEN-1)
-        MVN ^OSCOPY2_DST, $0
+        MVN $0, OSCOPY2_DST
         SEP #%00110000 ; Back to 8b registers
         .I8
         .A8
@@ -930,7 +930,7 @@ COPY8ROMS:
          LDY #(MEMCOPY_HIGH & $FFFF)
          LDA #(MEMCOPYCODE_END - MEMCOPYCODE)
          PHB                    ; save DBR because block moves change it
-         MVN ^MEMCOPY_HIGH, $0
+         MVN $0,MEMCOPY_HIGH
          PLB                    ; restore DBR
          SEP #%00110000         ; Back to 8b registers
          .I8
@@ -1033,7 +1033,7 @@ MEMCOPY_PATCH_ROM:
         REP #%00110000          ; 16 bit index registers on
         .I16
         .A16
-        ;; MVN <destbank> <srcbank> with Y as dest addr, X as source addr, A as bytecount-1
+        ;; MVN <srcbank><destbank> with Y as dest addr, X as source addr, A as bytecount-1
 
 MEMCOPY_PATCH_SRC:
         LDX #MEMCOPY_SRC        ; lower 16 bits of source
@@ -1042,7 +1042,7 @@ MEMCOPY_PATCH_DEST:
 MEMCOPY_PATCH_LEN:
         LDA #(MEMCOPY_LEN-1)
 MEMCOPY_PATCH_MVN:
-        MVN ^MEMCOPY_DST, $0
+        MVN $0, MEMCOPY_DST
         SEP #%00110000 ; Back to 8b registers
         .I8
         .A8
