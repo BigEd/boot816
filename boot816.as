@@ -42,6 +42,8 @@
         .DEFINE OSRDRM  $FFB9 rom number in Y, address in &F6/7, X and Y not preserved
         .DEFINE GSINIT  $FFC2
         .DEFINE GSREAD  $FFC5
+        .DEFINE OSFIND  $FFCE
+        .DEFINE OSGBPB  $FFD1
         .DEFINE OSASCI  $FFE3
         .DEFINE OSNEWL  $FFE7
         .DEFINE OSWRCH  $FFEE
@@ -179,6 +181,9 @@ BTEXT:  .BYTE $0D
 .endif
         .BYTE "  HIPEEK <address>",$0D
         .BYTE "  HIPOKE <address> <data>",$0D
+.ifdef XLOAD_D
+        .BYTE "  XLOAD <filename> <address>", $0D
+.endif
         .BYTE "  HEXDUMP <start> <end>",$0D
         .BYTE "  ROMCOPY",$0D
         .BYTE "  TURBO",$0D
@@ -275,6 +280,11 @@ COMLIST:
         .BYTE "HIPOKE"
         .BYTE >HIPOKE
         .BYTE <HIPOKE
+.ifdef XLOAD_D
+        .byte "XLOAD"
+        .BYTE >XLOAD
+        .BYTE <XLOAD
+.endif
         .BYTE "ROMCOPY"
         .BYTE >ROMCOPY
         .BYTE <ROMCOPY
@@ -1487,4 +1497,8 @@ TOPLEVEL=1
 .endif
 .ifdef SRECORD_D
 .include "srecord.as"
+.endif
+
+.ifdef XLOAD_D
+.include "xload.as"
 .endif
