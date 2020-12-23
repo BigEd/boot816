@@ -855,6 +855,10 @@ ROMCOPY:
        JSR PRNTSTR
        .BYTE "Copying 8 ROMs to high memory ..."
        NOP
+       LDA CPLD_MAPREG		; get state of CPLD MAP register
+       PHA 			; save it
+       AND #$EF 		; clear the ROM remapping bit
+       STA CPLD_MAPREG		; write back to CPLD
        JSR COPY8ROMS
        JSR PRNTSTR
        .BYTE "DONE.", $0D,"Copying MOS to high memory ..."
@@ -863,10 +867,8 @@ ROMCOPY:
        JSR PRNTSTR
        .BYTE "DONE.", $0D
        NOP
-       ;; Set the ROM copied mapping bit at the end
-       ;; LDA CPLD_MAPREG
-       ;; ORA #CPLD_ROM_MAPMASK
-       ;; STA CPLD_MAPREG
+       PLA			; restore CPLD MAP register
+       STA CPLD_MAPREG
        RTS
 
 
