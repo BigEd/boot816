@@ -14,25 +14,11 @@
         .SETCPU "65816"
         .ORG $8000
 
-        .DEFINE TARGET_BEEB    0
-        .DEFINE TARGET_ELK     1
-        .DEFINE TARGET_MASTER  2
+        .DEFINE ROMLATCH_ELK     $FE05
+        .DEFINE ROMLATCH_BEEB    $FE30
 
-.IFNDEF TARGET_D
-        .DEFINE TARGET_D = TARGET_BEEB
-.ENDIF
-
-.IF (TARGET_D = TARGET_ELK)
-        .DEFINE ROMLATCH         $FE05
-        .DEFINE ELK_BASIC_SLOT     $0C
-.ELSE
-        .DEFINE ROMLATCH         $FE30
-.ENDIF
-
-.IF (TARGET_D = TARGET_MASTER)
         .DEFINE ACCCON           $FE34
         .DEFINE ACC_Y_MASK         $08
-.ENDIF
 
         .DEFINE ROMLATCHCOPY       $F4
         .DEFINE CPLD_MAPREG    $800000      ; CPLD MAP and clock control register location
@@ -81,6 +67,24 @@
         STA AA
         XBA
         STA BB
+        .ENDMACRO
+
+        .MACRO TEST_IS_MASTER
+        LDA CPLD_MAPREG
+        AND #$60
+        CMP #$60
+        .ENDMACRO
+
+        .MACRO TEST_IS_ELK
+        LDA CPLD_MAPREG
+        AND #$60
+        CMP #$40
+        .ENDMACRO
+
+        .MACRO BSR ADDR
+        PER @RETURN - 1
+        BRL ADDR
+        @RETURN:
         .ENDMACRO
 
 LANG:   .BYTE $00,$00,$00       ; no language entry
@@ -964,12 +968,14 @@ ROMCOPY:
         .DEFINE         COPY2_LEN              $100  ; 256 bytes
 
 OSCOPY:
-.IF (TARGET_D = TARGET_MASTER)
+        TEST_IS_MASTER
+        BNE NOT_MASTER1
         LDA ACCCON              ; read the access control register
         PHA                     ; save original value
         AND #($ff-ACC_Y_MASK)   ; page OS into 0xC000-0xDFFF
         STA ACCCON              ; write back to the access control register
-.ENDIF
+NOT_MASTER1:
+
         MAC_MODE816             ; also sets interrupt mask
         PHB                     ; save DBR because block moves change it
         REP #%00110000          ; 16 bit index registers on
@@ -990,10 +996,13 @@ OSCOPY:
         .A8
         PLB                     ; restore DBR
         MAC_MODE02              ; also re-enables interrupts
-.IF (TARGET_D = TARGET_MASTER)
+
+        TEST_IS_MASTER
+        BNE NOT_MASTER2
         PLA                     ; restore original value of access control register
         STA ACCCON
-.ENDIF
+NOT_MASTER2:
+
         RTS
 
         ;; ---------------------------------------------------------
@@ -1032,15 +1041,9 @@ COPY8ROMS:
 ; we need to compute some offsets into the block move code
 ; but we're struggling with ca65's type conversions of expressions
 
-.IF (TARGET_D = TARGET_ELK)
-MEMCOPY_ROM_OFFSET=$0A
-MEMCOPY_DEST_OFFSET=$17
-MEMCOPY_MVN_OFFSET=$1D
-.ELSE
 MEMCOPY_ROM_OFFSET=$3
-MEMCOPY_DEST_OFFSET=$10
-MEMCOPY_MVN_OFFSET=$16
-.ENDIF
+MEMCOPY_DEST_OFFSET=$11
+MEMCOPY_MVN_OFFSET=$17
 
 ; Uncomment these to recompute the numbers in the assignments above
 ; LDA # MEMCOPY_PATCH_ROM - MEMCOPYCODE
@@ -1110,16 +1113,10 @@ MEMCOPYCODE:
         LDA ROMLATCHCOPY        ; take a safe copy of the current ROM
         PHA
 
-.IF (TARGET_D = TARGET_ELK)
-        LDA #ELK_BASIC_SLOT     ; Select Basic before possibly selecting lower ROMs
-        STA ROMLATCHCOPY
-        STA ROMLATCH
-.ENDIF
 MEMCOPY_PATCH_ROM:
         LDA #MEMCOPY_SOURCE_ROM_DUMMY
+        BSR SELECT_ROM          ; select the ROM to copy
 
-        STA ROMLATCHCOPY
-        STA ROMLATCH
         PHB                     ; save DBR because block moves change it
         ;; block copy routine - ought really to re-use this code
         REP #%00110000          ; 16 bit index registers on
@@ -1140,18 +1137,31 @@ MEMCOPY_PATCH_MVN:
         .A8
 
         PLB                     ; restore DBR
-.IF (TARGET_D = TARGET_ELK)
-        LDA #ELK_BASIC_SLOT     ; Select Basic before possibly selecting lower ROMs
+
+        PLA                     ; reselect Beeb816 ROM
+        BSR SELECT_ROM
+
+        RTL                     ; return to the Beeb816 ROM
+
+SELECT_ROM:
+        PHA
+        TEST_IS_ELK
+        BEQ SELECT_ROM_ELK
+        PLA
         STA ROMLATCHCOPY
-        STA ROMLATCH
-.ENDIF
-        PLA                     ; re-select the original ROM
+        STA ROMLATCH_BEEB
+        RTS
+
+SELECT_ROM_ELK:
+        LDA #$0C
         STA ROMLATCHCOPY
-        STA ROMLATCH
+        STA ROMLATCH_ELK
+        PLA
+        STA ROMLATCHCOPY
+        STA ROMLATCH_ELK
+        RTS
 
 MEMCOPYCODE_END:
-        RTL
-
 
         ;; ---------------------------------------------------------
         ;; Take a 24-bit address and print the byte found there
