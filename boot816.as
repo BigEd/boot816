@@ -36,6 +36,7 @@
 
         .DEFINE ROMLATCHCOPY       $F4
         .DEFINE CPLD_MAPREG    $800000      ; CPLD MAP and clock control register location
+        .DEFINE BOOT_FLAG      $FFFC00      ; in the hole in the OS ROM
         .DEFINE CPLD_RAM_MAPMASK   $10      ; NB bits 0..3 are clock control bits and not to be disturbed
         .DEFINE CPLD_ROM_MAPMASK   $20      ; NB bits 0..3 are clock control bits and not to be disturbed
 
@@ -87,17 +88,9 @@ SERV:   JMP CHECK               ; service entry
 TYPE:   .BYTE $82               ; ROM type=Serv+6502
 OFST:   .BYTE COPYRT-LANG
 VERNO:  .BYTE $10
-TITLE:  .BYTE "BEEB816 support ROM"
-
-.IF (TARGET_D = TARGET_ELK)     ; make it obvious if the wrong ROM is loaded
-        .BYTE " (Elk)"
-.ELSEIF (TARGET_D = TARGET_MASTER)
-        .BYTE " (Master)"
-.ELSE
-        .BYTE " (Beeb)"
-.ENDIF
-        .BYTE $0D, $00
-TITLE2: .BYTE "2008-20"
+TITLE:  .BYTE "BEEB816"
+        .BYTE $00
+TITLE2: .BYTE "1.00"
 COPYRT: .BYTE $00
         .BYTE "(C) Revaldinho & BigEd",$0D
         .BYTE $00
@@ -107,12 +100,13 @@ CHECK:  CMP #$04                ; is it a command?
 HPCH:   CMP #$09                ; is it a help rqst?
         BNE SRVCCH              ; ..no, is it service rqst?
         JMP HLPCH               ; ..yes, check if for this ROM
-SRVCCH: CMP #$03                ; is it a service3 ?
-        BNE SRVC27CH            ; ..no, is it srvc27?
-        JMP Service3Reset       ; ..yes, handle a service 3
-SRVC27CH: CMP #$27              ; is it a service27?
+SRVCCH: CMP #$02                ; is it a service 02
+        BNE SRVCCH2             ; ..no, bug out
+        JMP Service02           ; ..yes
+SRVCCH2:CMP #$0F                ; is it a service 02
         BNE OUT                 ; ..no, bug out
-        JMP Service27Reset      ; ..yes
+        JMP Service0F           ; ..yes
+
 OUT:    RTS
 HLPCH:  PHP                     ; save registers
         PHA
@@ -796,54 +790,142 @@ SetSerialRedirect2:
         ; done
 
         ;; ----------------------------------------------------------
-        ;; BootFS - initialize the ROM at boot time
+        ;; Service Calls to initialize Beeb816
+        ;;
+        ;; Service 02 (Private Workspace Claim) happens once only
+        ;; during the boot sequence before any boot messages
+        ;; are printed (on all machine types). In this service call
+        ;; we just set a delayed boot flag;
+        ;;
+        ;; Service 0F (Vectors Claimed) is one of the last service calls
+        ;; so we piggy-back on this, to initialize Beeb816, and to
+        ;; output the Beeb816 banner in a consistent place
         ;; ----------------------------------------------------------
-BootFS:
+
+Service02:
+        TXA
+        PHA
+        TYA
+        PHA
         JSR DetectCPUType
         CMP #$03
-        BEQ PrintRomTitle
-        RTS
-
-        ;; ----------------------------------------------------------
-        ;; SERVICE 3 - BOOT FS
-        ;; ----------------------------------------------------------
-Service3Reset:
-        PHA                     ; we should not claim this service
-        PHX                     ; preserve all registers
-        PHY
-        JSR BootFS
-        PLY                     ; restore everything
-        PLX
+        BNE Service02Return
+        LDA #$AA        ; set boot flag to a magic value to trigger delayed initialization
+        STA BOOT_FLAG   ; only execute this if a 65816 detected, as this is a 24-bit address
+Service02Return:
         PLA
-        RTS
-
-        ;; ----------------------------------------------------------
-        ;; SERVICE &27 - RESET
-        ;;
-        ;; We have never seen this on a BBC but it seems to be how
-        ;; the ROM is initialized on a Master128
-        ;; ----------------------------------------------------------
-Service27Reset:
-        PHA                     ; we should not claim this service
-;;        JSR PRNTSTR           ; Print inline text up to NOP
-;;        .BYTE 13,"Boot816 saw a service 27",13
-;;        NOP
-        JSR BootFS
+        TAY
         PLA
+        TAX
+        LDA #$02       ; we should not claim this service
         RTS
 
-        ;; ---------------------------------------------------------
-        ;; Print ROM title
-        ;; ---------------------------------------------------------
-PrintRomTitle:
+
+Service0F:
+        TXA
+        PHA
+        TYA
+        PHA
+        JSR DetectCPUType
+        CMP #$03
+        BNE Service0FReturn
+        LDA BOOT_FLAG
+        CMP #$AA
+        BNE Service0FReturn
+        JSR InitBeeb816
+Service0FReturn:
+        PLA
+        TAY
+        PLA
+        TAX
+        LDA #$0F       ; we should not claim this service
+        RTS
+
+        ;; ----------------------------------------------------------
+        ;; InitBeeb816 - initialize the ROM at boot time
+        ;; ----------------------------------------------------------
+InitBeeb816:
+        LDA #$00                ; Clear the boot flag so we only initialize once
+        STA BOOT_FLAG
+
+        LDA #$00                ; OSBYTE A=&00: Identify Host/OS
         LDX #$FF
-        LDA #$00                ; Print NULL as first char
-PrintRomTitleNext:
+        JSR OSBYTE
+
+        CPX # (MachineTableEnd - MachineTable - 1)
+        BCC MachineKnown
+        LDX # (MachineTableEnd - MachineTable - 1)
+
+MachineKnown:
+        LDA MachineTable, X
+        TAX
+        LDA CPLD_MAPREG         ; Read the Beeb816 control register
+        AND #$9F                ; Clear bits 5/6
+        ORA MachineBase, X      ; OR in the machine specific vale
+        STA CPLD_MAPREG         ; Write back the result
+        INX
+
+        LDY #$00                ; Print the ROM title
+TitleLoop:
+        LDA TITLE,Y
+        BEQ TitleDone
+        JSR OSASCI
+        INY
+        BNE TitleLoop
+
+TitleDone:                      ; Print a space
+        LDA #' '
+        JSR OSASCI
+
+MachineLoop:                    ; Print the machine type
+        LDA MachineBase, X
+        BEQ MachineDone
         JSR OSASCI
         INX
-        LDA TITLE,X
-        BNE PrintRomTitleNext
-        RTS
+        BNE MachineLoop
+
+MachineDone:                    ; Print a couple of newlines
+        LDA #$0D
+        JSR OSASCI
+        JMP OSASCI
+
+MachineTable:
+        .BYTE MachineElk      - MachineBase  ; X=&00 = Electron/Communiactor
+        .BYTE MachineBBCB     - MachineBase  ; X=&01 = BBC B
+        .BYTE MachineBBCBPlus - MachineBase  ; X=&02 = BBC B+
+        .BYTE MachineMaster   - MachineBase  ; X=&03 = Master
+        .BYTE MachineMaster   - MachineBase  ; X=&04 = Master ET
+        .BYTE MachineMaster   - MachineBase  ; X=&05 = Master Compact
+        .BYTE MachineUnknown   - MachineBase  ; X=&06 onwards = Unknown
+MachineTableEnd:
+
+MachineBase:
+
+MachineBBCB:
+        .BYTE $00         ; value to OR into CPLD_MAPREG bits 6/5
+        .BYTE "(BBC B)"   ; id string
+        .BYTE $00         ; terminator
+
+MachineBBCBPlus:
+        .BYTE $20         ; value to OR into CPLD_MAPREG bits 6/5
+        .BYTE "(BBC B+)"  ; id string
+        .BYTE $00         ; terminator
+
+MachineElk:
+        .BYTE $40         ; value to OR into CPLD_MAPREG bits 6/5
+        .BYTE "(Elk)"     ; id string
+        .BYTE $00         ; terminator
+
+MachineMaster:
+        .BYTE $60         ; value to OR into CPLD_MAPREG bits 6/5
+        .BYTE "(Master)"  ; id string
+        .BYTE $00         ; terminator
+
+MachineUnknown:
+        .BYTE $00         ; value to OR into CPLD_MAPREG bits 6/5
+        .BYTE "(Unknown)" ; id string
+        .BYTE $00         ; terminator
+
 
         ;; ---------------------------------------------------------
         ;; ROMCOPY - call both the OSCOPY and COPY8ROMS functions
