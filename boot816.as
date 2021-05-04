@@ -105,8 +105,10 @@ HPCH:   CMP #$09                ; is it a help rqst?
         BNE SRVCCH              ; ..no, is it service rqst?
         JMP HLPCH               ; ..yes, check if for this ROM
 SRVCCH: CMP #$02                ; is it a service 02
+        BEQ SRVCCH1             ; yes
+        CMP #$27                ; is it a service 27 (Master only)
         BNE SRVCCH2             ; ..no, bug out
-        JMP Service02           ; ..yes
+SRVCCH1:JMP Service02           ; ..yes
 SRVCCH2:CMP #$0F                ; is it a service 02
         BNE OUT                 ; ..no, bug out
         JMP Service0F           ; ..yes
