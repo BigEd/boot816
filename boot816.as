@@ -1059,8 +1059,8 @@ MEMCOPY_MVN_OFFSET=$17
 .ASSERT MEMCOPY_MVN_OFFSET = MEMCOPY_PATCH_MVN - MEMCOPYCODE, error, "precomputed difference fail"
 
          ; the block move code now safely in high memory
-         ; copy the 4 RAMish ROMs, 4 to 7, to bank FD
-         LDA #$FD
+         ; copy the 4 RAMish ROMs, 4 to 7, to bank FC
+         LDA #$FC
          STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
          LDY #4
 NEXTROM1:
@@ -1080,10 +1080,10 @@ NEXTROM1:
          CPY #8
          BNE NEXTROM1
 
-         ; copy the top 4 ROMs, 12 to 15, to bank FE
-         LDA #$FE
+         ; copy the 2 ROMs, 10 to 11, to bank FD
+         LDA #$FD
          STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
-         LDY #12
+         LDY #10
 NEXTROM2:
          TYA
          STA MEMCOPY_HIGH + MEMCOPY_ROM_OFFSET +1
@@ -1098,8 +1098,30 @@ NEXTROM2:
          MAC_MODE02             ; also re-enables interrupts
          PLY
          INY
-         CPY #16
+         CPY #12
          BNE NEXTROM2
+
+         ; copy the top 4 ROMs, 12 to 15, to bank FE
+         LDA #$FE
+         STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
+         LDY #12
+
+NEXTROM3:
+         TYA
+         STA MEMCOPY_HIGH + MEMCOPY_ROM_OFFSET +1
+         ROR                    ; move ROM index into top bits for destination
+         ROR
+         ROR
+         AND #$C0
+         STA MEMCOPY_HIGH + MEMCOPY_DEST_OFFSET +2
+         PHY
+         MAC_MODE816            ; also sets interrupt mask
+         JSL MEMCOPY_HIGH
+         MAC_MODE02             ; also re-enables interrupts
+         PLY
+         INY
+         CPY #16
+         BNE NEXTROM3
          RTS
 
         ;; ---------------------------------------------------------
@@ -1252,26 +1274,6 @@ HIPEEKPOKEFAIL:
         JMP ReportResult
         ; done
 
-TURBO:
-        JSR ROMCOPY             ; copies sideways ROMs and OS
-        LDA CPLD_MAPREG
-        ORA #$14                ; map ROMs, high speed clock /1 and retain state of shadow/cached video RAM
-        STA CPLD_MAPREG
-        JSR PRNTSTR
-        .BYTE "Turbo engaged!", $0D
-        NOP
-        RTS
-
-SHADOW:
-        LDA CPLD_MAPREG
-        ORA #$80                ; enable shadow RAM (video memory is hidden, HIMEM can be 8000)
-        STA CPLD_MAPREG
-        JSR PRNTSTR
-        .BYTE "Shadow RAM enabled: HIMEM can be 8000", $0D
-        NOP
-        RTS
-
-
         ;; ---------------------------------------------------------
         ;; Dump a region of memory in hex
         ;; *HEXDUMP AAAAAA BBBBBB
@@ -1341,6 +1343,48 @@ print8bits:
         JMP printhex1byte
         ; done
 
+TURBO:
+        JSR ROMCOPY             ; copies sideways ROMs and OS
+        LDA CPLD_MAPREG
+        ORA #$14                ; map ROMs, high speed clock /1 and retain state of shadow/cached video RAM
+        STA CPLD_MAPREG
+        JSR PRNTSTR
+        .BYTE "Turbo engaged!", $0D
+        NOP
+        RTS
+
+SHADOW:
+        ; before setting the shadow bit copy the RAM contents from the current bank $FF
+        ; (which will now become shadow memory) to the video cache bank $FD to be sure
+        ; all memory is coherent
+
+        MAC_MODE816             ; also sets interrupt mask
+        PHB                     ; save DBR because block moves change it
+        REP #%00110000          ; 16 bit index registers on
+        .I16
+        .A16
+        ;; MVN <srcbank>><destbank> with Y as dest addr, X as source addr, A as bytecount-1
+
+        LDX #$0000                  ; lower 16 bits of source address
+        LDY #$0000                  ; lower 16 bits of destination
+        LDA #$7FFF                  ; &8000 bytes to copy (length-1 for MVN)
+        MVN $FF0000,$FD0000         ; Copy from bank &FF to &FD
+
+        SEP #%00110000 ; Back to 8b registers
+        .I8
+        .A8
+        PLB                     ; restore DBR
+        MAC_MODE02              ; also re-enables interrupts
+
+        ; Now update only the shadow bit in the CPLD register
+        LDA CPLD_MAPREG
+        ORA #$80                ; enable shadow RAM (video memory is hidden, HIMEM can be 8000)
+        STA CPLD_MAPREG
+        JSR PRNTSTR
+        .BYTE "Shadow RAM enabled: HIMEM can be 8000", $0D
+        NOP
+        RTS
+        
 
 .ifdef IRQINSTALL_D
         ;; ---------------------------------------------------------
