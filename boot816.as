@@ -1060,10 +1060,12 @@ MEMCOPY_MVN_OFFSET=$17
 
          ; the block move code now safely in high memory
          ; copy the 4 RAMish ROMs, 4 to 7, to bank FC
-         LDA #$FC
-         STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
-         LDY #4
-NEXTROM1:
+         LDA #$FC               ; destination bank
+         LDY #4                 ; ROM number
+         
+SETBANK:
+        STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
+NEXTROM:
          TYA
          STA MEMCOPY_HIGH + MEMCOPY_ROM_OFFSET +1
          ROR                    ; move ROM index into top bits for destination
@@ -1078,51 +1080,20 @@ NEXTROM1:
          PLY
          INY
          CPY #8
-         BNE NEXTROM1
-
-         ; copy the 2 ROMs, 10 to 11, to bank FD
-         LDA #$FD
-         STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
-         LDY #10
-NEXTROM2:
-         TYA
-         STA MEMCOPY_HIGH + MEMCOPY_ROM_OFFSET +1
-         ROR                    ; move ROM index into top bits for destination
-         ROR
-         ROR
-         AND #$C0
-         STA MEMCOPY_HIGH + MEMCOPY_DEST_OFFSET +2
-         PHY
-         MAC_MODE816            ; also sets interrupt mask
-         JSL MEMCOPY_HIGH
-         MAC_MODE02             ; also re-enables interrupts
-         PLY
-         INY
+         BEQ ROM89AB
          CPY #12
-         BNE NEXTROM2
-
-         ; copy the top 4 ROMs, 12 to 15, to bank FE
-         LDA #$FE
-         STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
-         LDY #12
-
-NEXTROM3:
-         TYA
-         STA MEMCOPY_HIGH + MEMCOPY_ROM_OFFSET +1
-         ROR                    ; move ROM index into top bits for destination
-         ROR
-         ROR
-         AND #$C0
-         STA MEMCOPY_HIGH + MEMCOPY_DEST_OFFSET +2
-         PHY
-         MAC_MODE816            ; also sets interrupt mask
-         JSL MEMCOPY_HIGH
-         MAC_MODE02             ; also re-enables interrupts
-         PLY
-         INY
+         BEQ ROMCDEF
          CPY #16
-         BNE NEXTROM3
+         BNE NEXTROM
          RTS
+
+ROM89AB: ; skip over 8,9 and copy the 2 ROMs, 10 to 11, to bank FD
+         LDA #$FD
+         LDY #10          ; next ROM number
+         BRA SETBANK
+ROMCDEF: ; Update the bank to &FE only for ROMs C-F
+         LDA #$FE
+         BRA SETBANK
 
         ;; ---------------------------------------------------------
         ;; Code to be copied into RAM so it can copy SWROM
@@ -1384,7 +1355,7 @@ SHADOW:
         .BYTE "Shadow RAM enabled: HIMEM can be 8000", $0D
         NOP
         RTS
-        
+
 
 .ifdef IRQINSTALL_D
         ;; ---------------------------------------------------------
