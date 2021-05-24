@@ -934,20 +934,20 @@ MachineUnknown:
 
 
         ;; ---------------------------------------------------------
-        ;; ROMCOPY - call both the OSCOPY and COPY8ROMS functions
+        ;; ROMCOPY - call both the OSCOPY and COPYROMS functions
         ;;           to make HIMEM copies of the firmware
         ;; *ROMCOPY
         ;; ---------------------------------------------------------
 ROMCOPY:
        JSR DieIfNot65816
        JSR PRNTSTR
-       .BYTE "Copying 8 ROMs to high memory ..."
+       .BYTE "Copying ROMs to high memory ..."
        NOP
        LDA CPLD_MAPREG		; get state of CPLD MAP register
        PHA 			; save it
        AND #$EF 		; clear the ROM remapping bit
        STA CPLD_MAPREG		; write back to CPLD
-       JSR COPY8ROMS
+       JSR COPYROMS
        JSR PRNTSTR
        .BYTE "DONE.", $0D,"Copying MOS to high memory ..."
        NOP
@@ -965,10 +965,14 @@ ROMCOPY:
         ;; *OSCOPY
         ;; ---------------------------------------------------------
         .DEFINE         OSCOPY1_SRC	      $C000
-        .DEFINE         OSCOPY1_DST         $FF8000
+;; Old code, relocated MOS to &8000 in high memory
+;;        .DEFINE         OSCOPY1_DST         $FF8000
+;;        .DEFINE         OSCOPY2_DST         $FFBF00
+;; New code, keep MOS at &C000 in high memory
+        .DEFINE         OSCOPY1_DST         $FFC000
+        .DEFINE         OSCOPY2_DST         $FFFF00
         .DEFINE         COPY1_LEN             $3C00  ; 15k
         .DEFINE         OSCOPY2_SRC	      $FF00
-        .DEFINE         OSCOPY2_DST         $FFBF00
         .DEFINE         COPY2_LEN              $100  ; 256 bytes
 
 OSCOPY:
@@ -1021,7 +1025,7 @@ NOT_MASTER2:
         ;; ---------------------------------------------------------
         MEMCOPY_HIGH = OSCOPY1_DST ; a safe place for the copy code
 
-COPY8ROMS:
+COPYROMS:
          ;; we need about 50 bytes, somewhere in RAM, to do the copying
          ; first we copy our master routine, then patch it and then use it
          ; the master routine is copied to a high bank where the MOS will
@@ -1062,7 +1066,7 @@ MEMCOPY_MVN_OFFSET=$17
          ; copy the 4 RAMish ROMs, 4 to 7, to bank FC
          LDA #$FC               ; destination bank
          LDY #4                 ; ROM number
-         
+
 SETBANK:
         STA MEMCOPY_HIGH + MEMCOPY_MVN_OFFSET +1
 NEXTROM:
